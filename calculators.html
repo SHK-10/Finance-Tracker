@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f2">
+  <script>try{if(localStorage.getItem('folio-theme')==='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#171b18'}}catch{}</script>
+  <style>html{background:#f6f7f4}html[data-theme="dark"]{background:#171b18}</style>
+  <title>Calculators — Folio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="index.html#overview"><span class="brand-mark">f</span><span>folio<span class="brand-dot">.</span></span></a>
+      <div class="workspace-label">YOUR WORKSPACE</div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a class="nav-link" href="index.html#overview"><span class="nav-icon">◫</span>Overview</a>
+        <a class="nav-link" href="index.html#transactions"><span class="nav-icon">↕</span>Transactions</a>
+        <a class="nav-link" href="budgets.html"><span class="nav-icon">◉</span>Budgets</a>
+        <a class="nav-link" href="goals.html"><span class="nav-icon">◎</span>Savings goals</a>
+        <a class="nav-link" href="reminders.html"><span class="nav-icon">♧</span>Reminders</a>
+        <details class="nav-group"><summary class="nav-link"><span class="nav-icon">⌁</span>Analytics <span class="nav-caret">⌄</span></summary><div class="nav-children"><a class="nav-sublink" href="cashflow.html">Cash flow</a><a class="nav-sublink" href="reporting.html">Reporting</a></div></details>
+        <a class="nav-link active" href="calculators.html"><span class="nav-icon">⌗</span>Calculator</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="upgrade-card"><div class="upgrade-symbol">✳</div><strong>A little more clarity</strong><p>Your money story, all in one place.</p><a class="upgrade-btn" href="index.html#overview">Back to overview <span>↗</span></a></div>
+        <button class="profile" id="accountSwitcherButton" type="button" aria-label="Switch account"><span class="avatar">A</span><span class="profile-copy"><strong>Alex Morgan</strong><small id="activeAccountName">Personal account</small></span><span class="profile-menu">⌄</span></button>
+      </div>
+    </aside>
+    <button class="mobile-nav-backdrop" id="mobileBackdrop" type="button" aria-label="Close navigation" hidden></button>
+
+    <main class="main-content calculators-page">
+      <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Open menu" aria-expanded="false">☰</button><div class="breadcrumb"><a href="index.html#overview">Workspace</a> <span>/</span> <strong>Calculators</strong></div><div class="topbar-actions"><span class="today" id="todayLabel"></span><button class="theme-toggle" id="themeToggle" type="button" aria-label="Turn on dark mode" title="Turn on dark mode"><span id="themeIcon" aria-hidden="true">☾</span></button><button class="avatar top-avatar" aria-label="Profile">A</button></div></header>
+      <section class="welcome-row"><div><div class="eyebrow"><span class="live-dot"></span> TOOLS FOR YOUR NEXT MOVE</div><h1>Financial calculators</h1><p class="subtitle">Explore loan payments and possible investment growth.</p></div></section>
+
+      <section class="calculator-grid" aria-label="Financial calculators">
+        <article class="panel calculator-panel" id="emiCalculator">
+          <div class="panel-heading"><div><div class="eyebrow">PLAN AHEAD</div><h2>EMI calculator</h2><p>Estimate your monthly loan payment.</p></div><span class="round-icon green-icon">⌗</span></div>
+          <div class="calculator-fields">
+            <label class="calc-field"><span>Loan amount</span><div class="amount-input"><span>Nrs</span><input id="loanAmount" type="number" min="0" step="1000" value="2500000" inputmode="decimal"></div></label>
+            <label class="calc-field"><span>Annual interest rate</span><div class="suffix-input"><input id="loanRate" type="number" min="0" step="0.1" value="9.5" inputmode="decimal"><span>%</span></div></label>
+            <label class="calc-field"><span>Loan term</span><div class="suffix-input"><input id="loanYears" type="number" min="1" step="1" value="20" inputmode="numeric"><span>years</span></div></label>
+          </div>
+          <div class="calc-result"><div><span class="mini-label">ESTIMATED MONTHLY EMI</span><strong id="emiResult">Nrs 0.00</strong></div><div class="calc-breakdown"><span>Total interest <strong id="emiInterest">Nrs 0.00</strong></span><span>Total repayment <strong id="emiTotal">Nrs 0.00</strong></span></div></div>
+          <p class="calc-note">Estimate only. Your lender may calculate fees and terms differently.</p>
+        </article>
+
+        <article class="panel calculator-panel" id="returnCalculator">
+          <div class="panel-heading"><div><div class="eyebrow">GROW OVER TIME</div><h2>Expected return</h2><p>See how your investment could grow.</p></div><span class="round-icon savings-icon">↗</span></div>
+          <div class="calculator-fields">
+            <label class="calc-field"><span>Initial investment</span><div class="amount-input"><span>Nrs</span><input id="investmentAmount" type="number" min="0" step="1000" value="100000" inputmode="decimal"></div></label>
+            <label class="calc-field"><span>Monthly contribution <small>optional</small></span><div class="amount-input"><span>Nrs</span><input id="monthlyContribution" type="number" min="0" step="500" value="5000" inputmode="decimal"></div></label>
+            <div class="calc-fields-row"><label class="calc-field"><span>Expected annual return</span><div class="suffix-input"><input id="returnRate" type="number" min="0" step="0.1" value="8" inputmode="decimal"><span>%</span></div></label><label class="calc-field"><span>Time invested</span><div class="suffix-input"><input id="returnYears" type="number" min="1" step="1" value="10" inputmode="numeric"><span>years</span></div></label></div>
+          </div>
+          <div class="calc-result"><div><span class="mini-label">ESTIMATED FUTURE VALUE</span><strong id="futureValue">Nrs 0.00</strong></div><div class="calc-breakdown"><span>Amount invested <strong id="amountInvested">Nrs 0.00</strong></span><span>Estimated growth <strong id="estimatedGrowth">Nrs 0.00</strong></span></div></div>
+          <p class="calc-note">Projection assumes a steady annual return compounded monthly. Actual returns vary.</p>
+        </article>
+      </section>
+      <footer class="footer"><span>Made for a more mindful money life.</span><span>Folio <span class="brand-dot">●</span></span></footer>
+    </main>
+  </div>
+  <dialog id="accountDialog" class="modal account-modal"><div class="modal-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2>Switch account</h2><p class="account-modal-copy">Keep personal and family finances in separate profiles.</p></div><button type="button" class="close-btn" data-account-close aria-label="Close">×</button></div><div id="accountList" class="account-list"></div><form id="createAccountForm" class="create-account-form"><label class="field-label" for="newAccountName">Create another account</label><div class="create-account-row"><input class="input" id="newAccountName" maxlength="32" placeholder="e.g. Travel fund" required><button class="secondary-btn" type="submit">＋ Create</button></div></form><p class="account-local-note">Profiles are saved in this browser on this device.</p></dialog>
+  <script src="account-data.js"></script>
+  <script src="reminder-scheduler.js"></script>
+  <script src="calculators.js"></script>
+  <script src="account-switcher.js"></script>
+  <script src="navigation-motion.js"></script>
+</body>
+</html>

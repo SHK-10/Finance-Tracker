@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f5f6f2">
+  <script>try{if(localStorage.getItem('folio-theme')==='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#171b18'}}catch{}</script><style>html{background:#f6f7f4}html[data-theme="dark"]{background:#171b18}</style>
+  <title>Cash flow — Folio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css">
+</head>
+<body data-analytics-page="cashflow">
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="index.html#overview"><span class="brand-mark">f</span><span>folio<span class="brand-dot">.</span></span></a><div class="workspace-label">YOUR WORKSPACE</div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a class="nav-link" href="index.html#overview"><span class="nav-icon">◫</span>Overview</a><a class="nav-link" href="index.html#transactions"><span class="nav-icon">↕</span>Transactions</a><a class="nav-link" href="budgets.html"><span class="nav-icon">◉</span>Budgets</a><a class="nav-link" href="goals.html"><span class="nav-icon">◎</span>Savings goals</a><a class="nav-link" href="reminders.html"><span class="nav-icon">♧</span>Reminders</a>
+        <details class="nav-group" open><summary class="nav-link active"><span class="nav-icon">⌁</span>Analytics <span class="nav-caret">⌄</span></summary><div class="nav-children"><a class="nav-sublink active" href="cashflow.html" aria-current="page">Cash flow</a><a class="nav-sublink" href="reporting.html">Reporting</a></div></details>
+        <a class="nav-link" href="calculators.html"><span class="nav-icon">⌗</span>Calculator</a>
+      </nav>
+      <div class="sidebar-bottom"><div class="upgrade-card"><div class="upgrade-symbol">⌁</div><strong>Follow your money</strong><p>See how income and expenses move over time.</p><a class="upgrade-btn" href="index.html#overview">Back to overview <span>↗</span></a></div><button class="profile" id="accountSwitcherButton" type="button" aria-label="Switch account"><span class="avatar">A</span><span class="profile-copy"><strong>Alex Morgan</strong><small id="activeAccountName">Personal account</small></span><span class="profile-menu">⌄</span></button></div>
+    </aside>
+    <button class="mobile-nav-backdrop" id="mobileBackdrop" type="button" aria-label="Close navigation" hidden></button>
+    <main class="main-content analytics-page">
+      <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Open menu" aria-expanded="false">☰</button><div class="breadcrumb"><a href="index.html#overview">Workspace</a><span>/</span><strong>Cash flow</strong></div><div class="topbar-actions"><span class="today" id="todayLabel"></span><button class="theme-toggle" id="themeToggle" type="button" aria-label="Turn on dark mode" title="Turn on dark mode"><span id="themeIcon" aria-hidden="true">☾</span></button><button class="avatar top-avatar" aria-label="Profile">A</button></div></header>
+      <section class="welcome-row"><div><div class="eyebrow"><span class="live-dot"></span> MONEY IN, MONEY OUT</div><h1>Cash flow</h1><p class="subtitle">Track how your income and spending change over time.</p></div></section>
+      <section class="analytics-toolbar"><div><strong id="cashflowRangeTitle">This month</strong><span id="cashflowRangeNote">Income, expenses, and net cash flow</span></div><label class="visually-hidden" for="cashflowPeriod">Cash flow date range</label><select id="cashflowPeriod" class="select-control"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">One week</option><option value="month" selected>One month</option><option value="threeMonths">Three months</option><option value="sixMonths">Six months</option><option value="year">One year</option><option value="all">All time</option></select></section>
+      <section class="goal-summary-grid cashflow-summary" aria-label="Cash flow totals"><article class="goal-summary-card"><span class="mini-label">MONEY IN</span><strong id="cashflowIncome">Nrs 0.00</strong><small>Income in this period</small></article><article class="goal-summary-card"><span class="mini-label">MONEY OUT</span><strong id="cashflowExpenses">Nrs 0.00</strong><small>Expenses in this period</small></article><article class="goal-summary-card"><span class="mini-label">NET CASH FLOW</span><strong id="cashflowNet">Nrs 0.00</strong><small id="cashflowNetNote">Income minus expenses</small></article></section>
+      <section class="panel cashflow-chart-panel"><div class="panel-heading"><div><h2>Income and expenses</h2><p>Compare money in and money out for each time period.</p></div><div class="chart-legend"><span><i class="legend-dot income-legend"></i>Income</span><span><i class="legend-dot expense-legend"></i>Expenses</span></div></div><div id="cashflowChart" class="cashflow-chart" aria-label="Cash flow chart"></div><div id="cashflowEmpty" class="analytics-empty" hidden>No transactions in this period. Add transactions to see your cash flow.</div></section>
+      <section class="panel cashflow-activity"><div class="panel-heading"><div><h2>Period activity</h2><p id="cashflowActivityNote">Transactions included in this summary.</p></div><a class="text-link" href="reporting.html">View report <span>→</span></a></div><div id="cashflowActivity" class="cashflow-activity-list"></div></section>
+      <footer class="footer"><span>Made for a more mindful money life.</span><span>Folio <span class="brand-dot">●</span></span></footer>
+    </main>
+  </div>
+  <dialog id="accountDialog" class="modal account-modal"><div class="modal-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2>Switch account</h2><p class="account-modal-copy">Keep personal and family finances in separate profiles.</p></div><button type="button" class="close-btn" data-account-close aria-label="Close">×</button></div><div id="accountList" class="account-list"></div><form id="createAccountForm" class="create-account-form"><label class="field-label" for="newAccountName">Create another account</label><div class="create-account-row"><input class="input" id="newAccountName" maxlength="32" placeholder="e.g. Travel fund" required><button class="secondary-btn" type="submit">＋ Create</button></div></form><p class="account-local-note">Profiles are saved in this browser on this device.</p></dialog>
+  <script src="account-data.js"></script><script src="reminder-scheduler.js"></script><script src="analytics.js"></script><script src="account-switcher.js"></script><script src="navigation-motion.js"></script>
+</body>
+</html>
