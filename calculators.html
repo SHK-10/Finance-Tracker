@@ -49,15 +49,25 @@
           <p class="calc-note">Estimate only. Your lender may calculate fees and terms differently.</p>
         </article>
 
-        <article class="panel calculator-panel" id="returnCalculator">
-          <div class="panel-heading"><div><div class="eyebrow">GROW OVER TIME</div><h2>Expected return</h2><p>See how your investment could grow.</p></div><span class="round-icon savings-icon">↗</span></div>
+        <article class="panel calculator-panel" id="cagrCalculator">
+          <div class="panel-heading"><div><div class="eyebrow">MEASURE PERFORMANCE</div><h2>CAGR calculator</h2><p>Find the annualized growth rate of an investment.</p></div><span class="round-icon savings-icon">↗</span></div>
           <div class="calculator-fields">
-            <label class="calc-field"><span>Initial investment</span><div class="amount-input"><span>Nrs</span><input id="investmentAmount" type="number" min="0" step="1000" value="100000" inputmode="decimal"></div></label>
-            <label class="calc-field"><span>Monthly contribution <small>optional</small></span><div class="amount-input"><span>Nrs</span><input id="monthlyContribution" type="number" min="0" step="500" value="5000" inputmode="decimal"></div></label>
-            <div class="calc-fields-row"><label class="calc-field"><span>Expected annual return</span><div class="suffix-input"><input id="returnRate" type="number" min="0" step="0.1" value="8" inputmode="decimal"><span>%</span></div></label><label class="calc-field"><span>Time invested</span><div class="suffix-input"><input id="returnYears" type="number" min="1" step="1" value="10" inputmode="numeric"><span>years</span></div></label></div>
+            <label class="calc-field"><span>Starting value</span><div class="amount-input"><span>Nrs</span><input id="cagrStart" type="number" min="0.01" step="1000" value="100000" inputmode="decimal"></div></label>
+            <label class="calc-field"><span>Ending value</span><div class="amount-input"><span>Nrs</span><input id="cagrEnd" type="number" min="0" step="1000" value="215892" inputmode="decimal"></div></label>
+            <label class="calc-field"><span>Investment period</span><div class="suffix-input"><input id="cagrYears" type="number" min="0.01" step="0.5" value="10" inputmode="decimal"><span>years</span></div></label>
           </div>
-          <div class="calc-result"><div><span class="mini-label">ESTIMATED FUTURE VALUE</span><strong id="futureValue">Nrs 0.00</strong></div><div class="calc-breakdown"><span>Amount invested <strong id="amountInvested">Nrs 0.00</strong></span><span>Estimated growth <strong id="estimatedGrowth">Nrs 0.00</strong></span></div></div>
-          <p class="calc-note">Projection assumes a steady annual return compounded monthly. Actual returns vary.</p>
+          <div class="calc-result"><div><span class="mini-label">COMPOUND ANNUAL GROWTH RATE</span><strong id="cagrResult">0.00%</strong></div><div class="calc-breakdown"><span>Total growth <strong id="cagrGrowth">0.00%</strong></span><span>Value change <strong id="cagrChange">Nrs 0.00</strong></span></div></div>
+          <p class="calc-note">CAGR smooths growth into an annual rate. It does not show year-to-year fluctuations.</p>
+        </article>
+
+        <article class="panel calculator-panel" id="sipCalculator">
+          <div class="panel-heading"><div><div class="eyebrow">INVEST REGULARLY</div><h2>SIP calculator</h2><p>Estimate the future value of monthly investments.</p></div><span class="round-icon green-icon">↗</span></div>
+          <div class="calculator-fields">
+            <label class="calc-field"><span>Monthly investment</span><div class="amount-input"><span>Nrs</span><input id="sipMonthly" type="number" min="0" step="500" value="5000" inputmode="decimal"></div></label>
+            <div class="calc-fields-row"><label class="calc-field"><span>Expected annual return</span><div class="suffix-input"><input id="sipRate" type="number" min="0" step="0.1" value="8" inputmode="decimal"><span>%</span></div></label><label class="calc-field"><span>Investment period</span><div class="suffix-input"><input id="sipYears" type="number" min="0.1" step="0.5" value="10" inputmode="decimal"><span>years</span></div></label></div>
+          </div>
+          <div class="calc-result"><div><span class="mini-label">ESTIMATED SIP FUTURE VALUE</span><strong id="sipFutureValue">Nrs 0.00</strong></div><div class="calc-breakdown"><span>Amount invested <strong id="sipInvested">Nrs 0.00</strong></span><span>Estimated returns <strong id="sipReturns">Nrs 0.00</strong></span></div></div>
+          <p class="calc-note">Assumes each monthly contribution is made at month end and returns compound monthly. Actual returns vary.</p>
         </article>
       </section>
       <footer class="footer"><span>Made for a more mindful money life.</span><span>Folio <span class="brand-dot">●</span></span></footer>

@@ -31,6 +31,26 @@ function allowanceFor(limit,start,end){
   }
   return total;
 }
+function renderSpendingPie(rangeTx,totalSpent){
+  const colors=['#557861','#806fd1','#d18b5b','#4d93a4','#ba6680','#8c9b45','#6797cf','#a675b7','#cbad4e','#4c9b78'];
+  const categories=new Map();
+  for(const tx of rangeTx)categories.set(tx.category,(categories.get(tx.category)||0)+tx.amount);
+  const entries=[...categories].sort((a,b)=>b[1]-a[1]);
+  const chart=$('budgetPieChart'),legend=$('budgetChartLegend');
+  $('budgetPieTotal').textContent=money(totalSpent);legend.replaceChildren();
+  if(totalSpent<=0){chart.style.background='conic-gradient(var(--line) 0deg 360deg)';chart.setAttribute('aria-label','No spending recorded for this period');const empty=document.createElement('p');empty.className='budget-chart-empty';empty.textContent='No spending recorded for this period.';legend.append(empty);return;}
+  let angle=0;
+  const slices=entries.map(([category,amount],index)=>{const start=angle;angle+=amount/totalSpent*360;return {category,amount,index,start,end:angle};});
+  chart.style.background=`conic-gradient(${slices.map(slice=>`${colors[slice.index%colors.length]} ${slice.start}deg ${slice.end}deg`).join(',')})`;
+  chart.setAttribute('aria-label',`Spending breakdown by ${entries.length} categories, total ${money(totalSpent)}`);
+  for(const slice of slices){
+    const item=document.createElement('div');item.className='budget-legend-item';
+    const swatch=document.createElement('span');swatch.className='budget-legend-swatch';swatch.style.backgroundColor=colors[slice.index%colors.length];swatch.setAttribute('aria-hidden','true');
+    const name=document.createElement('span');name.className='budget-legend-name';name.textContent=slice.category;
+    const value=document.createElement('strong');value.className='budget-legend-value';value.textContent=`${money(slice.amount)} · ${Math.round(slice.amount/totalSpent*100)}%`;
+    item.append(swatch,name,value);legend.append(item);
+  }
+}
 function renderBudgets(){
   const mode=$('periodSelect').value,range=getRange(mode),rangeTx=budgetState.transactions.filter(tx=>{const date=txDate(tx.date);return tx.type==='expense'&&date>=range.start&&date<range.end;});
   const totalSpent=rangeTx.reduce((sum,tx)=>sum+tx.amount,0);
@@ -42,18 +62,20 @@ function renderBudgets(){
   $('periodRemaining').textContent=money(totalAllowed-totalSpent);
   $('periodRemaining').classList.toggle('over-budget',totalSpent>totalAllowed);
   $('remainingCaption').textContent=totalSpent>totalAllowed?'Over budget for this period':'Available for this period';
+  renderSpendingPie(rangeTx,totalSpent);
   $('budgetCount').textContent=`${budgetState.budgets.length} ${budgetState.budgets.length===1?'category':'categories'}`;
   $('budgetPageEmpty').hidden=budgetState.budgets.length>0;
   const host=$('allBudgetList');host.innerHTML='';
   for(const item of budgetState.budgets){
     const spent=rangeTx.filter(tx=>tx.category===item.category).reduce((sum,tx)=>sum+tx.amount,0);
-    const allowed=allowanceFor(item.limit,range.start,range.end),remaining=allowed-spent,pct=allowed?Math.min(100,spent/allowed*100):0;
+    const allowed=allowanceFor(item.limit,range.start,range.end),remaining=allowed-spent,pct=allowed?Math.round(spent/allowed*100):0;
     const row=document.createElement('article');row.className='all-budget-row';
-    row.innerHTML=`<div class="all-budget-main"><div class="all-budget-name"><span class="budget-emoji">${categoryIcon[item.category]||'◈'}</span><span><strong></strong><small>Monthly limit ${money(item.limit)}</small></span></div><div class="all-budget-numbers"><span>Spent<strong>${money(spent)}</strong></span><span>Budget<strong>${money(allowed)}</strong></span><span class="${remaining<0?'over-budget':''}">Remaining<strong>${money(remaining)}</strong></span><button class="edit-budget" type="button">Edit</button></div></div><div class="all-budget-progress"><div class="progress-track"><div class="progress-fill ${spent>allowed?'over':''}" style="width:${pct}%"></div></div><span>${Math.round(pct)}% used</span></div>`;
+    row.innerHTML=`<div class="all-budget-main"><div class="all-budget-name"><span class="budget-emoji">${categoryIcon[item.category]||'◈'}</span><span><strong></strong><small>Monthly limit ${money(item.limit)}</small></span></div><div class="all-budget-numbers"><span>Spent<strong>${money(spent)}</strong></span><span>Budget<strong>${money(allowed)}</strong></span><span class="${remaining<0?'over-budget':''}">Remaining<strong>${money(remaining)}</strong></span><span class="budget-used">${pct}% used</span><button class="edit-budget" type="button">Edit</button></div></div>`;
     row.querySelector('.all-budget-name strong').textContent=item.category;
     row.querySelector('.edit-budget').addEventListener('click',()=>{ $('budgetCategory').value=item.category;$('budgetLimit').value=item.limit;$('budgetDialog').showModal(); });
     host.appendChild(row);
   }
+  renderBudgetAlerts($('budgetAlerts'),budgetState);
 }
 function saveBudgets(){localStorage.setItem(FolioAccounts.dataKey(),JSON.stringify(budgetState));renderBudgets();}
 function applyTheme(theme){

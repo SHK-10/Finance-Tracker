@@ -21,18 +21,29 @@ function calculateEMI(){
   $('emiTotal').textContent=money(emi*months);
 }
 
-function calculateReturn(){
-  const initial=Math.max(0,Number($('investmentAmount').value)||0);
-  const monthly=Math.max(0,Number($('monthlyContribution').value)||0);
-  const rate=Math.max(0,Number($('returnRate').value)||0)/1200;
-  const months=Math.max(1,(Number($('returnYears').value)||1)*12);
-  const initialFuture=initial*Math.pow(1+rate,months);
-  const contributionFuture=rate===0?monthly*months:monthly*((Math.pow(1+rate,months)-1)/rate)*(1+rate);
-  const future=initialFuture+contributionFuture;
-  const invested=initial+monthly*months;
-  $('futureValue').textContent=money(future);
-  $('amountInvested').textContent=money(invested);
-  $('estimatedGrowth').textContent=money(future-invested);
+function calculateCAGR(){
+  const start=Math.max(0,Number($('cagrStart').value)||0);
+  const end=Math.max(0,Number($('cagrEnd').value)||0);
+  const years=Math.max(0,Number($('cagrYears').value)||0);
+  const valid=start>0&&years>0&&end>0;
+  const rate=valid?(Math.pow(end/start,1/years)-1)*100:0;
+  const totalGrowth=start>0?(end/start-1)*100:0;
+  $('cagrResult').textContent=valid?`${rate.toFixed(2)}%`:'Enter valid values';
+  $('cagrGrowth').textContent=start>0?`${totalGrowth.toFixed(2)}%`:'—';
+  $('cagrChange').textContent=money(end-start);
+}
+
+function calculateSIP(){
+  const monthly=Math.max(0,Number($('sipMonthly').value)||0);
+  const annualRate=Math.max(0,Number($('sipRate').value)||0);
+  const years=Math.max(0,Number($('sipYears').value)||0);
+  const months=Math.max(0,Math.round(years*12));
+  const monthlyRate=annualRate/1200;
+  const future=monthlyRate===0?monthly*months:monthly*((Math.pow(1+monthlyRate,months)-1)/monthlyRate);
+  const invested=monthly*months;
+  $('sipFutureValue').textContent=money(future);
+  $('sipInvested').textContent=money(invested);
+  $('sipReturns').textContent=money(future-invested);
 }
 
 $('todayLabel').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
@@ -44,11 +55,13 @@ $('themeToggle').addEventListener('click',()=>{
   applyTheme(next);
 });
 ['loanAmount','loanRate','loanYears'].forEach(id=>$(id).addEventListener('input',calculateEMI));
-['investmentAmount','monthlyContribution','returnRate','returnYears'].forEach(id=>$(id).addEventListener('input',calculateReturn));
+['cagrStart','cagrEnd','cagrYears'].forEach(id=>$(id).addEventListener('input',calculateCAGR));
+['sipMonthly','sipRate','sipYears'].forEach(id=>$(id).addEventListener('input',calculateSIP));
 function setMobileMenu(open){$('sidebar').classList.toggle('open',open);$('mobileBackdrop').hidden=!open;$('mobileMenu').setAttribute('aria-expanded',String(open));}
 $('mobileMenu').addEventListener('click',()=>setMobileMenu(!$('sidebar').classList.contains('open')));
 $('mobileBackdrop').addEventListener('click',()=>setMobileMenu(false));
 document.addEventListener('keydown',event=>{if(event.key==='Escape')setMobileMenu(false);});
 document.querySelectorAll('.main-nav > .nav-link,.nav-sublink').forEach(link=>link.addEventListener('click',()=>setMobileMenu(false)));
 calculateEMI();
-calculateReturn();
+calculateCAGR();
+calculateSIP();

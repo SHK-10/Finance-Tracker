@@ -84,19 +84,33 @@ function renderChart(){
   for(const bucket of buckets){const group=document.createElement('div');group.className='bar-group';group.innerHTML=`<div class="bar expense-bar" style="height:${Math.max(bucket.expense?2:0,bucket.expense/max*92)}%" title="Expenses ${money(bucket.expense)}"></div><div class="bar income-bar" style="height:${Math.max(bucket.income?2:0,bucket.income/max*92)}%" title="Income ${money(bucket.income)}"></div>`;$('barChart').appendChild(group);const label=document.createElement('span');label.textContent=bucket.label;$('chartLabels').appendChild(label);}
   $('chartTotal').textContent=money(selectedTransactions.filter(tx=>tx.type==='expense').reduce((sum,tx)=>sum+tx.amount,0));
 }
-function render(){renderSummary();renderTransactions();renderBudgets();renderChart();}
+function render(){renderSummary();renderTransactions();renderBudgets();renderChart();renderBudgetAlerts($('budgetAlerts'),state);}
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2400);}
 function openDialog(dialog){dialog.showModal();}
 $('todayLabel').textContent=today.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 $('txDate').value=dateKey(today);
 applyTheme(localStorage.getItem(THEME_KEY)==='dark'?'dark':'light');
 $('themeToggle').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';localStorage.setItem(THEME_KEY,next);applyTheme(next);});
-$('addTransaction').addEventListener('click',()=>openDialog($('transactionDialog')));
-$('emptyAdd').addEventListener('click',()=>openDialog($('transactionDialog')));
+$('addTransaction').addEventListener('click',()=>openTransactionDialog('expense'));
+$('addIncome').addEventListener('click',()=>openTransactionDialog('income'));
+$('txType').addEventListener('change',e=>setTransactionCategories(e.target.value));
+function setTransactionCategories(type){
+  const category=$('txCategory'), current=category.value;
+  const choices=type==='income'?['Salary','Freelance','Business','Investment','Gift','Other']:['Food & dining','Shopping','Transport','Housing','Entertainment','Health','Other'];
+  category.replaceChildren(...choices.map(value=>{const option=document.createElement('option');option.value=value;option.textContent=value;return option;}));
+  category.value=choices.includes(current)?current:choices[0];
+}
+function openTransactionDialog(type){
+  $('txType').value=type;setTransactionCategories(type);
+  $('transactionDialogTitle').textContent=type==='income'?'Add income':'Add transaction';
+  $('transactionSubmit').firstChild.textContent=type==='income'?'Save income ':'Save transaction ';
+  openDialog($('transactionDialog'));
+}
+$('emptyAdd').addEventListener('click',()=>openTransactionDialog('expense'));
 $('addBudget').addEventListener('click',()=>openDialog($('budgetDialog')));
 document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>btn.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));
-$('transactionForm').addEventListener('submit',e=>{e.preventDefault();const data=new FormData(e.currentTarget);state.transactions.unshift({id:crypto.randomUUID(),name:data.get('name').trim(),amount:Number(data.get('amount')),type:data.get('type'),category:data.get('category'),date:data.get('date')});save();e.currentTarget.reset();$('txDate').value=dateKey(today);$('transactionDialog').close();toast('Transaction added');});
+$('transactionForm').addEventListener('submit',e=>{e.preventDefault();const data=new FormData(e.currentTarget),type=data.get('type');state.transactions.unshift({id:crypto.randomUUID(),name:data.get('name').trim(),amount:Number(data.get('amount')),type,category:data.get('category'),date:data.get('date')});save();e.currentTarget.reset();$('txDate').value=dateKey(today);$('transactionDialog').close();toast(type==='income'?'Income added':'Transaction added');});
 $('budgetForm').addEventListener('submit',e=>{e.preventDefault();const category=$('budgetCategory').value,limit=Number($('budgetLimit').value);const existing=state.budgets.find(b=>b.category===category);if(existing)existing.limit=limit;else state.budgets.push({category,limit});save();e.currentTarget.reset();$('budgetDialog').close();toast('Budget saved');});
 $('periodSelect').addEventListener('change',renderChart);
 $('learnMore').addEventListener('click',()=>toast('A calmer view of your money, one step at a time.'));
