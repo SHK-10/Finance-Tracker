@@ -19,10 +19,10 @@
       <div class="workspace-label">YOUR WORKSPACE</div>
       <nav class="main-nav" aria-label="Main navigation">
         <a class="nav-link" href="index.html#overview"><span class="nav-icon">◫</span>Overview</a>
-        <a class="nav-link" href="index.html#transactions"><span class="nav-icon">↕</span>Transactions</a>
+        <a class="nav-link" href="transactions.html"><span class="nav-icon">↕</span>Transactions</a>
         <a class="nav-link active" href="budgets.html"><span class="nav-icon">◉</span>Budgets</a>
-        <a class="nav-link" href="goals.html"><span class="nav-icon">◎</span>Savings goals</a>
-        <a class="nav-link" href="reminders.html"><span class="nav-icon">♧</span>Reminders</a>
+        <a class="nav-link" href="goals.html"><span class="nav-icon">◎</span>Financial plan</a>
+        <a class="nav-link" href="reminders.html"><span class="nav-icon">♧</span>Reminders</a><a class="nav-link" href="recurring.html"><span class="nav-icon">⟳</span>Recurring transactions</a><a class="nav-link" href="net-worth.html"><span class="nav-icon">⌂</span>Net worth</a>
         <details class="nav-group"><summary class="nav-link"><span class="nav-icon">⌁</span>Analytics <span class="nav-caret">⌄</span></summary><div class="nav-children"><a class="nav-sublink" href="cashflow.html">Cash flow</a><a class="nav-sublink" href="reporting.html">Reporting</a></div></details>
         <a class="nav-link" href="calculators.html"><span class="nav-icon">⌗</span>Calculator</a>
       </nav>
@@ -50,9 +50,9 @@
     </main>
   </div>
 
-  <dialog id="budgetDialog" class="modal"><form id="budgetForm"><div class="modal-heading"><div><div class="eyebrow">SPEND WITH INTENTION</div><h2>Set a monthly budget</h2></div><button type="button" class="close-btn" data-close aria-label="Close">×</button></div><label class="field-label" for="budgetCategory">Category</label><select id="budgetCategory" class="input"><option>Food & dining</option><option>Shopping</option><option>Transport</option><option>Housing</option><option>Entertainment</option><option>Health</option><option>Other</option></select><label class="field-label gap-top" for="budgetLimit">Monthly limit</label><div class="amount-input budget-amount"><span>Nrs</span><input id="budgetLimit" type="number" min="1" step="1" placeholder="500" required></div><button class="primary-btn modal-submit" type="submit">Save budget <span>→</span></button></form></dialog>
+  <dialog id="budgetDialog" class="modal"><form id="budgetForm"><div class="modal-heading"><div><div class="eyebrow">SPEND WITH INTENTION</div><h2>Set a monthly budget</h2></div><button type="button" class="close-btn" data-close aria-label="Close">×</button></div><label class="field-label" for="budgetCategory">Category</label><select id="budgetCategory" class="input"><option>Food & dining</option><option>Shopping</option><option>Transport</option><option>Housing</option><option>Entertainment</option><option>Health</option><option>Other</option></select><label class="field-label gap-top" for="budgetLimit">Monthly limit</label><div class="amount-input budget-amount"><span>Nrs</span><input id="budgetLimit" type="number" min="1" step="1" placeholder="500" required></div><label class="field-label gap-top" for="budgetAlertThreshold">Notify me when spending reaches</label><div class="budget-threshold-input"><input id="budgetAlertThreshold" class="input" type="number" min="1" max="99" step="1" value="80" required><span>% of this category’s limit</span></div><p class="budget-threshold-help">You’ll also be notified when this budget is exceeded.</p><button class="primary-btn modal-submit" type="submit">Save budget <span>→</span></button></form></dialog>
   <dialog id="accountDialog" class="modal account-modal"><div class="modal-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2>Switch account</h2><p class="account-modal-copy">Keep personal and family finances in separate profiles.</p></div><button type="button" class="close-btn" data-account-close aria-label="Close">×</button></div><div id="accountList" class="account-list"></div><form id="createAccountForm" class="create-account-form"><label class="field-label" for="newAccountName">Create another account</label><div class="create-account-row"><input class="input" id="newAccountName" maxlength="32" placeholder="e.g. Travel fund" required><button class="secondary-btn" type="submit">＋ Create</button></div></form><p class="account-local-note">Profiles are saved in this browser on this device.</p></dialog>
-  <script src="account-data.js"></script>
+  <script src="account-data.js"></script><script src="recurring-scheduler.js"></script>
   <script src="reminder-scheduler.js"></script>
   <script src="budget-alerts.js"></script>
   <script src="budgets.js"></script>

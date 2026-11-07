@@ -6,9 +6,9 @@
     const alerts=[];
     for(const budget of state.budgets||[]){
       const spent=(state.transactions||[]).filter(tx=>{const date=new Date(`${tx.date}T12:00:00`);return tx.type==='expense'&&tx.category===budget.category&&date>=monthStart&&date<tomorrow;}).reduce((sum,tx)=>sum+(Number(tx.amount)||0),0);
-      const ratio=budget.limit>0?spent/budget.limit:0;
+      const ratio=budget.limit>0?spent/budget.limit:0,threshold=Math.min(99,Math.max(1,Number(budget.alertThreshold)||80))/100;
       if(ratio>=1)alerts.push({level:'over',category:budget.category,spent,limit:budget.limit,message:`${budget.category} is over budget by ${money(spent-budget.limit)}.`});
-      else if(ratio>=.8)alerts.push({level:'near',category:budget.category,spent,limit:budget.limit,message:`${budget.category} has used ${Math.floor(ratio*100)}% of its budget. ${money(budget.limit-spent)} remaining.`});
+      else if(ratio>=threshold)alerts.push({level:'near',category:budget.category,spent,limit:budget.limit,message:`${budget.category} has used ${Math.floor(ratio*100)}% of its budget (alert set at ${Math.round(threshold*100)}%). ${money(budget.limit-spent)} remaining.`});
     }
     host.replaceChildren();
     if(!alerts.length){host.hidden=true;return;}

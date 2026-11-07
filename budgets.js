@@ -70,9 +70,10 @@ function renderBudgets(){
     const spent=rangeTx.filter(tx=>tx.category===item.category).reduce((sum,tx)=>sum+tx.amount,0);
     const allowed=allowanceFor(item.limit,range.start,range.end),remaining=allowed-spent,pct=allowed?Math.round(spent/allowed*100):0;
     const row=document.createElement('article');row.className='all-budget-row';
-    row.innerHTML=`<div class="all-budget-main"><div class="all-budget-name"><span class="budget-emoji">${categoryIcon[item.category]||'◈'}</span><span><strong></strong><small>Monthly limit ${money(item.limit)}</small></span></div><div class="all-budget-numbers"><span>Spent<strong>${money(spent)}</strong></span><span>Budget<strong>${money(allowed)}</strong></span><span class="${remaining<0?'over-budget':''}">Remaining<strong>${money(remaining)}</strong></span><span class="budget-used">${pct}% used</span><button class="edit-budget" type="button">Edit</button></div></div>`;
+    const alertThreshold=Math.min(99,Math.max(1,Number(item.alertThreshold)||80));
+    row.innerHTML=`<div class="all-budget-main"><div class="all-budget-name"><span class="budget-emoji">${categoryIcon[item.category]||'◈'}</span><span><strong></strong><small>Monthly limit ${money(item.limit)} · Alert at ${alertThreshold}%</small></span></div><div class="all-budget-numbers"><span>Spent<strong>${money(spent)}</strong></span><span>Budget<strong>${money(allowed)}</strong></span><span class="${remaining<0?'over-budget':''}">Remaining<strong>${money(remaining)}</strong></span><span class="budget-used">${pct}% used</span><button class="edit-budget" type="button">Edit</button></div></div>`;
     row.querySelector('.all-budget-name strong').textContent=item.category;
-    row.querySelector('.edit-budget').addEventListener('click',()=>{ $('budgetCategory').value=item.category;$('budgetLimit').value=item.limit;$('budgetDialog').showModal(); });
+    row.querySelector('.edit-budget').addEventListener('click',()=>{ $('budgetCategory').value=item.category;$('budgetLimit').value=item.limit;$('budgetAlertThreshold').value=alertThreshold;$('budgetDialog').showModal(); });
     host.appendChild(row);
   }
   renderBudgetAlerts($('budgetAlerts'),budgetState);
@@ -88,14 +89,14 @@ $('activeAccountName').textContent=`${FolioAccounts.current().name} account`;
 applyTheme(localStorage.getItem('folio-theme')==='dark'?'dark':'light');
 $('themeToggle').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';localStorage.setItem('folio-theme',next);applyTheme(next);});
 $('periodSelect').addEventListener('change',renderBudgets);
-$('addBudget').addEventListener('click',()=>{ $('budgetForm').reset();$('budgetDialog').showModal(); });
-$('emptyAddBudget').addEventListener('click',()=>{ $('budgetForm').reset();$('budgetDialog').showModal(); });
+$('addBudget').addEventListener('click',()=>{ $('budgetForm').reset();$('budgetAlertThreshold').value=80;$('budgetDialog').showModal(); });
+$('emptyAddBudget').addEventListener('click',()=>{ $('budgetForm').reset();$('budgetAlertThreshold').value=80;$('budgetDialog').showModal(); });
 document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();}));
 $('budgetForm').addEventListener('submit',event=>{
-  event.preventDefault();const category=$('budgetCategory').value,limit=Number($('budgetLimit').value);
+  event.preventDefault();const category=$('budgetCategory').value,limit=Number($('budgetLimit').value),alertThreshold=Number($('budgetAlertThreshold').value);
   const existing=budgetState.budgets.find(item=>item.category===category);
-  if(existing)existing.limit=limit;else budgetState.budgets.push({category,limit});
+  if(existing){existing.limit=limit;existing.alertThreshold=alertThreshold;}else budgetState.budgets.push({category,limit,alertThreshold});
   saveBudgets();$('budgetDialog').close();event.currentTarget.reset();
 });
 function setMobileMenu(open){$('sidebar').classList.toggle('open',open);$('mobileBackdrop').hidden=!open;$('mobileMenu').setAttribute('aria-expanded',String(open));}
@@ -104,3 +105,4 @@ $('mobileBackdrop').addEventListener('click',()=>setMobileMenu(false));
 document.addEventListener('keydown',event=>{if(event.key==='Escape')setMobileMenu(false);});
 document.querySelectorAll('.main-nav > .nav-link,.nav-sublink').forEach(link=>link.addEventListener('click',()=>setMobileMenu(false)));
 renderBudgets();
+window.addEventListener('folio-finance-updated',event=>{if(event.detail&&typeof event.detail==='object')budgetState=event.detail;else{try{budgetState=JSON.parse(localStorage.getItem(FolioAccounts.dataKey()))||{transactions:[],budgets:structuredClone(DEFAULT_BUDGETS)};}catch{budgetState={transactions:[],budgets:structuredClone(DEFAULT_BUDGETS)};}}renderBudgets();});

@@ -6,7 +6,7 @@ const today = new Date();
 const todayStart = new Date(today.getFullYear(),today.getMonth(),today.getDate());
 let finance = {};
 try { finance = JSON.parse(localStorage.getItem(FolioAccounts.dataKey())) || {}; } catch {}
-const transactions = Array.isArray(finance.transactions) ? finance.transactions : [];
+let transactions = Array.isArray(finance.transactions) ? finance.transactions : [];
 
 function txDate(value){return new Date(`${value}T12:00:00`);}
 function getRange(mode){
@@ -86,10 +86,18 @@ function compareMetricCard(label,a,b,periodA,periodB,lowerIsBetter=false){
   change.textContent=difference===0?'No change':`${difference>0?'↑':'↓'} ${money(Math.abs(difference))}${b===0?' · New':` · ${Math.abs(difference/Math.abs(b)*100).toFixed(1)}%`}`;
   card.append(heading,values,bars,change);return card;
 }
+function renderNetSavingsGrowth(netA,netB,rangeA,rangeB){
+  const difference=netA-netB,change=$('netSavingGrowthChange'),good=difference>=0;
+  $('netSavingGrowthLabelA').textContent=rangeA.label;$('netSavingGrowthLabelB').textContent=rangeB.label;
+  $('netSavingGrowthValueA').textContent=money(netA);$('netSavingGrowthValueB').textContent=money(netB);
+  change.className=`net-savings-growth-change ${difference===0?'neutral':good?'positive':'negative'}`;
+  change.textContent=difference===0?'No change':`${difference>0?'↑':'↓'} ${money(Math.abs(difference))}${netB>0?` · ${Math.abs(difference/netB*100).toFixed(1)}%`:''}`;
+  $('netSavingGrowthText').textContent=difference===0?'Net savings are unchanged between the selected periods.':`${good?'Net savings increased':'Net savings decreased'} from Period B to Period A.`;
+}
 function renderCompareData(){
   const modeA=$('comparePeriodA').value,modeB=$('comparePeriodB').value;
   const rangeA=comparisonRange(modeA,$('compareStartA').value,$('compareEndA').value),rangeB=comparisonRange(modeB,$('compareStartB').value,$('compareEndB').value);
-  const host=$('reportCompareResults');host.replaceChildren();
+  const host=$('reportCompareResults');host.replaceChildren();host.classList.remove('all-metrics','single-metric');
   const metric=$('compareMetric').value;
   $('compareCategoryField').hidden=metric!=='category';
   if(metric==='category'){
@@ -97,10 +105,12 @@ function renderCompareData(){
     categorySelect.replaceChildren(...categories.map(category=>{const option=document.createElement('option');option.value=category;option.textContent=category;return option;}));
     if(categories.includes(selected))categorySelect.value=selected;
   }
-  if(!rangeA||!rangeB){$('reportCompareCaption').textContent='Choose valid start and end dates for both periods.';return;}
+  if(!rangeA||!rangeB){$('reportCompareCaption').textContent='Choose valid start and end dates for both periods.';$('netSavingGrowthChange').textContent='—';$('netSavingGrowthChange').className='net-savings-growth-change neutral';$('netSavingGrowthText').textContent='Select two valid periods to compare net savings.';$('netSavingGrowthValueA').textContent='—';$('netSavingGrowthValueB').textContent='—';return;}
   $('reportCompareCaption').textContent=`${rangeA.label} compared with ${rangeB.label}.`;
   const listFor=range=>transactions.filter(tx=>{const date=txDate(tx.date);return !Number.isNaN(date.getTime())&&date>=range.start&&date<range.end;});
   const listA=listFor(rangeA),listB=listFor(rangeB),sumA=totals(listA),sumB=totals(listB),netA=sumA.income-sumA.expense,netB=sumB.income-sumB.expense;
+  renderNetSavingsGrowth(netA,netB,rangeA,rangeB);
+  host.classList.add(metric==='all'?'all-metrics':'single-metric');
   if(metric==='all'){
     host.append(compareMetricCard('Income',sumA.income,sumB.income,rangeA,rangeB));
     host.append(compareMetricCard('Expenses',sumA.expense,sumB.expense,rangeA,rangeB,true));
@@ -145,3 +155,4 @@ if(document.body.dataset.analyticsPage==='reporting'){
 function setMobileMenu(open){$('sidebar').classList.toggle('open',open);$('mobileBackdrop').hidden=!open;$('mobileMenu').setAttribute('aria-expanded',String(open));}
 $('mobileMenu').addEventListener('click',()=>setMobileMenu(!$('sidebar').classList.contains('open')));$('mobileBackdrop').addEventListener('click',()=>setMobileMenu(false));document.addEventListener('keydown',event=>{if(event.key==='Escape')setMobileMenu(false);});
 document.querySelectorAll('.main-nav > .nav-link,.nav-sublink').forEach(link=>link.addEventListener('click',()=>setMobileMenu(false)));
+window.addEventListener('folio-finance-updated',event=>{finance=event.detail||{};transactions=Array.isArray(finance.transactions)?finance.transactions:[];if(document.body.dataset.analyticsPage==='cashflow')renderCashflow();if(document.body.dataset.analyticsPage==='reporting'){renderReporting();renderCompareData();}});

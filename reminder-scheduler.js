@@ -7,12 +7,12 @@
   try { const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved))reminders=saved; } catch {}
 
   function persist(){localStorage.setItem(key,JSON.stringify(reminders));}
-  function nextDate(date,repeat){
+  function nextDate(date,repeat,desiredDay=null){
     const next=new Date(date);
     if(repeat==='daily')next.setDate(next.getDate()+1);
     else if(repeat==='weekly')next.setDate(next.getDate()+7);
     else if(repeat==='monthly'||repeat==='yearly'){
-      const day=next.getDate();next.setDate(1);next.setMonth(next.getMonth()+(repeat==='monthly'?1:12));
+      const day=Number(desiredDay)||next.getDate();next.setDate(1);next.setMonth(next.getMonth()+(repeat==='monthly'?1:12));
       const lastDay=new Date(next.getFullYear(),next.getMonth()+1,0).getDate();next.setDate(Math.min(day,lastDay));
     }
     return next;
@@ -55,14 +55,23 @@
     showInApp(reminder);
     return sent;
   }
+  function emergencyFundNotice(reminder){
+    let goals=[];try{const saved=JSON.parse(localStorage.getItem(`${FolioAccounts.dataKey()}-goals`));if(Array.isArray(saved))goals=saved;}catch{}
+    const fund=goals.find(goal=>goal.type==='emergency');if(!fund)return false;
+    const months=Number(fund.targetMonths)===6?6:3,target=Number(fund.target)||0,minimum=target*3/months,saved=Number(fund.saved)||0;
+    if(minimum<=0||saved>=minimum)return false;
+    reminder.title='Emergency fund is below the 3-month minimum';reminder.amount=minimum-saved;reminder.notes=`Your emergency fund has ${new Intl.NumberFormat('en-IN').format(saved)} saved. Add ${new Intl.NumberFormat('en-IN').format(minimum-saved)} to reach three months of estimated essential expenses.`;
+    return true;
+  }
   function checkDue(){
     const now=Date.now();let changed=false;
     for(const reminder of reminders){
       if(!reminder.enabled||!reminder.dueAt)continue;
       const due=new Date(reminder.dueAt).getTime();if(!Number.isFinite(due)||due>now)continue;
-      notify(reminder);reminder.lastNotifiedAt=new Date(now).toISOString();changed=true;
+      const shouldNotify=!reminder.goalReminder||reminder.goalReminder!=='emergency-fund'||emergencyFundNotice(reminder);
+      if(shouldNotify)notify(reminder);reminder.lastNotifiedAt=new Date(now).toISOString();changed=true;
       if(reminder.repeat&&reminder.repeat!=='none'){
-        let next=new Date(reminder.dueAt);let guard=0;do{next=nextDate(next,reminder.repeat);guard++;}while(next.getTime()<=now&&guard<500);
+        let next=new Date(reminder.dueAt);let guard=0;do{next=nextDate(next,reminder.repeat,reminder.salaryDay);guard++;}while(next.getTime()<=now&&guard<500);
         reminder.dueAt=next.toISOString();
       }else{reminder.enabled=false;reminder.delivered=true;}
     }

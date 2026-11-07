@@ -1,16 +1,47 @@
 const $ = id => document.getElementById(id);
 const GOALS_KEY = `${FolioAccounts.dataKey()}-goals`;
+const PLAN_SETTINGS_KEY = `${GOALS_KEY}-settings`;
+const REMINDERS_KEY = `${FolioAccounts.dataKey()}-reminders`;
 const money = value => `Nrs ${new Intl.NumberFormat('en-IN',{maximumFractionDigits:2,minimumFractionDigits:2}).format(value)}`;
-const icons = {emergency:'✚',home:'⌂',vehicle:'↗',travel:'✈',education:'▤',health:'✚',custom:'✳'};
-const labels = {emergency:'Emergency fund',home:'Home',vehicle:'Vehicle',travel:'Travel',education:'Education',health:'Health',custom:'Custom goal'};
+const icons = {emergency:'✚',debt:'↘',retirement:'↗',home:'⌂',vehicle:'↗',travel:'✈',education:'▤',health:'✚',business:'◇',custom:'✳'};
+const labels = {emergency:'Emergency fund',debt:'Debt payoff',retirement:'Retirement / investing',home:'Home',vehicle:'Vehicle',travel:'Travel',education:'Education',health:'Health protection',business:'Business',custom:'Custom goal'};
+const essentials=/housing|rent|food|dining|transport|medical|health|utility|utilities|internet|insurance/i;
 const today = new Date();
 let finance = {};
 try { finance = JSON.parse(localStorage.getItem(FolioAccounts.dataKey())) || {}; } catch {}
 let goals;
 try { goals = JSON.parse(localStorage.getItem(GOALS_KEY)); } catch { goals = null; }
-if (!Array.isArray(goals)) goals = [{id:'emergency-fund',name:'Emergency fund',type:'emergency',target:150000,saved:0,createdAt:new Date().toISOString()}];
+if (!Array.isArray(goals)) goals = [{id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()}];
+if(!goals.some(goal=>goal.type==='emergency'))goals.unshift({id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()});
+let planSettings={salaryDay:null,emergencyMonths:3};
+try{planSettings={...planSettings,...JSON.parse(localStorage.getItem(PLAN_SETTINGS_KEY))};}catch{}
+planSettings.emergencyMonths=Number(planSettings.emergencyMonths)===6?6:3;
 
-function saveGoals(){localStorage.setItem(GOALS_KEY,JSON.stringify(goals));renderGoals();}
+function saveGoals(){localStorage.setItem(GOALS_KEY,JSON.stringify(goals));window.dispatchEvent(new CustomEvent('folio-financial-plan-changed',{detail:goals}));renderGoals();}
+function savePlanSettings(){localStorage.setItem(PLAN_SETTINGS_KEY,JSON.stringify(planSettings));}
+function salaryTransactions(){return (Array.isArray(finance.transactions)?finance.transactions:[]).filter(tx=>tx.type==='income'&&(/salary/i.test(String(tx.category||''))||/salary/i.test(String(tx.name||''))));}
+function monthlyEssentialCosts(){
+  const transactions=(Array.isArray(finance.transactions)?finance.transactions:[]),now=new Date(),first=new Date(now.getFullYear(),now.getMonth()-5,1),monthTotals=new Map();let earliest=null;
+  for(const tx of transactions){if(tx.type!=='expense'||!essentials.test(String(tx.category||''))||!tx.date)continue;const date=new Date(`${tx.date}T12:00:00`);if(Number.isNaN(date.getTime())||date<first||date>now)continue;earliest=earliest&&earliest<date?earliest:date;const key=`${date.getFullYear()}-${date.getMonth()}`;monthTotals.set(key,(monthTotals.get(key)||0)+(Number(tx.amount)||0));}
+  if(!monthTotals.size)return {average:0,months:0};
+  const months=Math.max(1,(now.getFullYear()-earliest.getFullYear())*12+now.getMonth()-earliest.getMonth()+1),total=[...monthTotals.values()].reduce((sum,value)=>sum+value,0);
+  return {average:total/months,months};
+}
+function nextPayday(day,immediateIfToday=false){
+  const now=new Date(),candidate=new Date(now.getFullYear(),now.getMonth(),Math.min(day,new Date(now.getFullYear(),now.getMonth()+1,0).getDate()),9,0,0,0);
+  if(immediateIfToday&&day===now.getDate())return now;
+  if(candidate>now)return candidate;
+  const next=new Date(now.getFullYear(),now.getMonth()+1,Math.min(day,new Date(now.getFullYear(),now.getMonth()+2,0).getDate()),9,0,0,0);return next;
+}
+function syncPaydayReminder(){
+  let reminders=[];try{const saved=JSON.parse(localStorage.getItem(REMINDERS_KEY));if(Array.isArray(saved))reminders=saved;}catch{}
+  const id=`financial-plan-emergency-payday-${FolioAccounts.currentId()}`,existing=reminders.find(item=>item.id===id),day=Number(planSettings.salaryDay),emergency=goals.find(goal=>goal.type==='emergency');
+  if(!day||!emergency){if(existing){reminders=reminders.filter(item=>item.id!==id);localStorage.setItem(REMINDERS_KEY,JSON.stringify(reminders));window.dispatchEvent(new CustomEvent('folio-reminders-changed',{detail:reminders}));}return;}
+  if(existing&&Number(existing.salaryDay)===day)return;
+  reminders=reminders.filter(item=>item.id!==id);const due=nextPayday(day,!existing&&day===today.getDate());
+  reminders.push({id,title:'Emergency fund salary-day check-in',kind:'custom',goalReminder:'emergency-fund',salaryDay:day,dueAt:due.toISOString(),repeat:'monthly',amount:0,notes:'We will remind you only if your emergency fund is below the 3-month minimum.',enabled:true,delivered:false,createdAt:new Date().toISOString()});
+  localStorage.setItem(REMINDERS_KEY,JSON.stringify(reminders));window.dispatchEvent(new CustomEvent('folio-reminders-changed',{detail:reminders}));
+}
 function recentMonthlySavings(){
   const transactions=Array.isArray(finance.transactions)?finance.transactions:[];
   const cutoff=new Date(today.getFullYear(),today.getMonth()-2,1);
@@ -37,7 +68,38 @@ function estimatedDate(goal,monthlyRate){
   const date=new Date(today.getFullYear(),today.getMonth()+months,1);
   return `Around ${date.toLocaleDateString('en-US',{month:'long',year:'numeric'})}`;
 }
+function renderEmergencyPlan(){
+  let emergency=goals.find(goal=>goal.type==='emergency'),newEmergency=false;if(!emergency){emergency={id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()};goals.unshift(emergency);newEmergency=true;}
+  const estimate=monthlyEssentialCosts(),minimum=estimate.average*3,recommended=estimate.average*6,selected=planSettings.emergencyMonths===6?6:3;
+  let emergencyChanged=newEmergency;if(Number(emergency.targetMonths)!==selected){emergency.targetMonths=selected;emergencyChanged=true;}
+  if(estimate.average>0&&Math.abs((Number(emergency.target)||0)-estimate.average*selected)>0.01){emergency.target=estimate.average*selected;emergencyChanged=true;}
+  if(emergencyChanged)localStorage.setItem(GOALS_KEY,JSON.stringify(goals));
+  $('essentialMonthlyEstimate').textContent=money(estimate.average);$('essentialEstimateBasis').textContent=estimate.months?`Average of ${estimate.months} recent ${estimate.months===1?'month':'months'} of essential spending`:'Add essential expenses to calculate a personalized range';
+  $('emergencyMinimumTarget').textContent=money(minimum);$('emergencyRecommendedTarget').textContent=money(recommended);$('emergencyTargetMonths').value=String(selected);
+  const saved=Number(emergency.saved)||0,status=$('emergencyFundStatus'),alertBox=$('emergencyFundAlert');status.className='emergency-fund-status';
+  if(!estimate.average){status.textContent='Needs expense data';status.classList.add('neutral');alertBox.textContent='Record essential expenses to calculate your 3–6 month emergency fund guideline. You can still add savings to the emergency fund.';}
+  else if(saved<minimum){status.textContent='Below minimum';status.classList.add('insufficient');alertBox.textContent=`Your emergency fund is ${money(minimum-saved)} below the 3-month minimum. Add to this fund when you can.`;}
+  else if(saved<recommended){status.textContent='Minimum met';status.classList.add('building');alertBox.textContent=`Your 3-month minimum is covered. Add ${money(recommended-saved)} to reach the 6-month safety target.`;}
+  else{status.textContent='Safety target met';status.classList.add('ready');alertBox.textContent='Your emergency fund covers at least six months of estimated essential costs.';}
+  if(!planSettings.salaryDay){const latest=salaryTransactions().sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];if(latest){const date=new Date(`${latest.date}T12:00:00`);if(!Number.isNaN(date.getTime())){planSettings.salaryDay=date.getDate();savePlanSettings();}}}
+  $('salaryDaySelect').value=planSettings.salaryDay?String(planSettings.salaryDay):'';
+  $('salaryDayDescription').textContent=planSettings.salaryDay?`A monthly check-in is scheduled for day ${planSettings.salaryDay}. You’ll only be notified if the fund is below the 3-month minimum.`:'Choose your usual payday or record an income categorized as Salary to set it automatically.';
+  syncPaydayReminder();
+}
+const suggestedPlans=[
+  {type:'debt',name:'Pay off high-interest debt',detail:'Reduce costly debt and free up future income.'},
+  {type:'retirement',name:'Retirement and investing',detail:'Build long-term savings for future independence.'},
+  {type:'health',name:'Health and protection',detail:'Prepare for medical and insurance costs.'},
+  {type:'home',name:'Home or housing',detail:'Save toward a home purchase or housing stability.'},
+  {type:'education',name:'Education and skills',detail:'Invest in learning and career opportunities.'}
+];
+function renderSuggestions(){
+  const host=$('suggestedGoals');host.replaceChildren();const available=suggestedPlans.filter(plan=>!goals.some(goal=>goal.type===plan.type));
+  if(!available.length){const note=document.createElement('p');note.className='suggested-goals-empty';note.textContent='You have added all the suggested goal types. Create a custom goal any time.';host.append(note);return;}
+  for(const plan of available){const card=document.createElement('article');card.className='suggested-goal-card';const icon=document.createElement('span');icon.className='suggested-goal-icon';icon.textContent=icons[plan.type]||'✳';const title=document.createElement('strong');title.textContent=plan.name;const detail=document.createElement('p');detail.textContent=plan.detail;const button=document.createElement('button');button.type='button';button.className='secondary-btn';button.textContent='＋ Add goal';button.addEventListener('click',()=>openGoalEditor(null,plan));card.append(icon,title,detail,button);host.append(card);}
+}
 function renderGoals(){
+  renderEmergencyPlan();renderSuggestions();
   const rate=recentMonthlySavings();
   const total=goals.reduce((sum,goal)=>sum+Number(goal.saved||0),0);
   $('totalSaved').textContent=money(total);
@@ -45,33 +107,38 @@ function renderGoals(){
   $('goalCount').textContent=`Across ${goals.length} ${goals.length===1?'goal':'goals'}`;
   $('activeGoalCount').textContent=goals.filter(goal=>Number(goal.saved)<Number(goal.target)).length;
   const host=$('goalList');host.innerHTML='';
-  goals.forEach(goal=>{
+  goals.filter(goal=>goal.type!=='emergency').forEach(goal=>{
     const target=Math.max(0,Number(goal.target)||0),saved=Math.max(0,Number(goal.saved)||0),pct=target?Math.min(100,saved/target*100):0;
     const card=document.createElement('article');card.className=`goal-card${goal.type==='emergency'?' emergency-goal':''}`;
     card.innerHTML=`<div class="goal-card-top"><span class="goal-icon">${icons[goal.type]||icons.custom}</span><span class="goal-type">${labels[goal.type]||labels.custom}</span>${goal.type==='emergency'?'<span class="goal-featured">ESSENTIAL</span>':''}</div><h3 class="goal-name"></h3><div class="goal-amounts"><strong>${money(saved)}</strong><span>of ${money(target)}</span></div><div class="goal-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${Math.round(pct)} percent saved"><div class="goal-progress-fill" style="width:${pct}%"></div></div><div class="goal-progress-meta"><span>${Math.round(pct)}% saved</span><span>${money(Math.max(0,target-saved))} to go</span></div><div class="goal-date"><span>Estimated completion</span><strong>${estimatedDate(goal,rate)}</strong></div><div class="goal-card-actions"><button class="secondary-btn goal-add" type="button">＋ Add savings</button><button class="goal-edit" type="button" aria-label="Edit goal">Edit</button>${goal.type==='emergency'?'':'<button class="goal-delete" type="button" aria-label="Delete goal">Delete</button>'}</div>`;
     card.querySelector('.goal-name').textContent=goal.name;
-    card.querySelector('.goal-add').addEventListener('click',()=>{$('contributionGoalId').value=goal.id;$('contributionTitle').textContent=`Add to ${goal.name}`;$('contributionForm').reset();$('contributionDialog').showModal();});
+    card.querySelector('.goal-add').addEventListener('click',()=>{$('contributionForm').reset();$('contributionGoalId').value=goal.id;$('contributionTitle').textContent=`Add to ${goal.name}`;$('contributionDialog').showModal();});
     card.querySelector('.goal-edit').addEventListener('click',()=>openGoalEditor(goal));
     const remove=card.querySelector('.goal-delete');if(remove)remove.addEventListener('click',()=>{goals=goals.filter(item=>item.id!==goal.id);saveGoals();});
     host.appendChild(card);
   });
 }
-function openGoalEditor(goal){
-  $('goalForm').reset();$('goalId').value=goal?.id||'';$('goalName').value=goal?.name||'';$('goalType').value=goal?.type||'custom';$('goalTarget').value=goal?.target||'';$('goalCurrent').value=goal?.saved||0;
-  $('goalDialogTitle').textContent=goal?'Edit savings goal':'Create a savings goal';$('goalDialogEyebrow').textContent=goal?'UPDATE YOUR PLAN':'YOUR NEXT MILESTONE';$('goalName').readOnly=goal?.type==='emergency';$('goalType').disabled=goal?.type==='emergency';$('goalDialog').showModal();
+function openGoalEditor(goal,suggestion=null){
+  $('goalForm').reset();$('goalId').value=goal?.id||'';$('goalName').value=goal?.name||'';$('goalType').value=goal?.type||'custom';const estimatedEmergencyTarget=monthlyEssentialCosts().average*planSettings.emergencyMonths;$('goalTarget').value=goal?.type==='emergency'?Math.max(1,estimatedEmergencyTarget||Number(goal.target)||1):goal?.target||'';$('goalCurrent').value=goal?.saved||0;
+  if(suggestion){$('goalName').value=suggestion.name;$('goalType').value=suggestion.type;}
+  $('goalDialogTitle').textContent=goal?'Edit financial goal':'Create a financial goal';$('goalDialogEyebrow').textContent=goal?'UPDATE YOUR PLAN':'YOUR NEXT MILESTONE';$('goalName').readOnly=goal?.type==='emergency';$('goalType').disabled=goal?.type==='emergency';$('goalTarget').readOnly=goal?.type==='emergency';$('goalDialog').showModal();
 }
 function applyTheme(theme){document.documentElement.dataset.theme=theme;const dark=theme==='dark';$('themeIcon').textContent=dark?'☀':'☾';$('themeToggle').setAttribute('aria-label',dark?'Turn on light mode':'Turn on dark mode');$('themeToggle').title=dark?'Turn on light mode':'Turn on dark mode';document.querySelector('meta[name="theme-color"]').content=dark?'#171b18':'#f5f6f2';}
 $('todayLabel').textContent=today.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 applyTheme(localStorage.getItem('folio-theme')==='dark'?'dark':'light');
 $('themeToggle').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';localStorage.setItem('folio-theme',next);applyTheme(next);});
 $('createGoalButton').addEventListener('click',()=>openGoalEditor(null));
-$('goalType').addEventListener('change',()=>{if(!$('goalId').value&&$('goalType').value==='emergency')$('goalName').value='Emergency fund';else if(!$('goalId').value&&$('goalName').value==='Emergency fund')$('goalName').value='';});
+$('addEmergencySavings').addEventListener('click',()=>{const fund=goals.find(goal=>goal.type==='emergency');if(!fund)return;$('contributionForm').reset();$('contributionGoalId').value=fund.id;$('contributionTitle').textContent='Add to Emergency fund';$('contributionDialog').showModal();});
+$('goalType').addEventListener('change',()=>{if(!$('goalId').value)$('goalName').value=$('goalType').value==='custom'?'':labels[$('goalType').value]||'';});
+for(let day=1;day<=31;day++){const option=document.createElement('option');option.value=String(day);option.textContent=`${day}${day===1?'st':day===2?'nd':day===3?'rd':'th'} of each month`;$('salaryDaySelect').append(option);}
+$('salaryDaySelect').addEventListener('change',()=>{planSettings.salaryDay=$('salaryDaySelect').value?Number($('salaryDaySelect').value):null;savePlanSettings();renderGoals();});
+$('emergencyTargetMonths').addEventListener('change',()=>{planSettings.emergencyMonths=Number($('emergencyTargetMonths').value)===6?6:3;savePlanSettings();renderGoals();});
 $('goalForm').addEventListener('submit',event=>{
   event.preventDefault();const id=$('goalId').value,name=$('goalName').value.trim(),type=$('goalType').value,target=Number($('goalTarget').value),saved=Number($('goalCurrent').value);
   if(!name||target<=0||saved<0)return;
   if(!id&&type==='emergency'&&goals.some(goal=>goal.type==='emergency')){alert('An emergency fund tracker already exists. Edit that tracker to change it.');return;}
-  if(id){const goal=goals.find(item=>item.id===id);if(goal){goal.name=goal.type==='emergency'?'Emergency fund':name;goal.type=goal.type==='emergency'?'emergency':type;goal.target=target;goal.saved=saved;}}
-  else goals.push({id:crypto.randomUUID(),name,type,target,saved,createdAt:new Date().toISOString()});
+  if(id){const goal=goals.find(item=>item.id===id);if(goal){goal.name=goal.type==='emergency'?'Emergency fund':name;goal.type=goal.type==='emergency'?'emergency':type;goal.target=goal.type==='emergency'?(monthlyEssentialCosts().average?monthlyEssentialCosts().average*planSettings.emergencyMonths:Number(goal.target)||0):target;goal.targetMonths=planSettings.emergencyMonths;goal.saved=saved;}}
+  else goals.push({id:crypto.randomUUID(),name,type,target,saved,targetMonths:type==='emergency'?planSettings.emergencyMonths:undefined,createdAt:new Date().toISOString()});
   saveGoals();$('goalDialog').close();
 });
 $('contributionForm').addEventListener('submit',event=>{event.preventDefault();const goal=goals.find(item=>item.id===$('contributionGoalId').value);const amount=Number($('contributionAmount').value);if(!goal||amount<=0)return;goal.saved=Number(goal.saved||0)+amount;saveGoals();$('contributionDialog').close();event.currentTarget.reset();});
@@ -82,3 +149,5 @@ $('mobileMenu').addEventListener('click',()=>setMobileMenu(!$('sidebar').classLi
 document.addEventListener('keydown',event=>{if(event.key==='Escape')setMobileMenu(false);});
 document.querySelectorAll('.main-nav > .nav-link,.nav-sublink').forEach(link=>link.addEventListener('click',()=>setMobileMenu(false)));
 renderGoals();
+window.addEventListener('folio-finance-updated',event=>{if(event.detail&&typeof event.detail==='object')finance=event.detail;else{try{finance=JSON.parse(localStorage.getItem(FolioAccounts.dataKey()))||{};}catch{finance={};}}renderGoals();});
+window.addEventListener('storage',event=>{if(event.key===FolioAccounts.dataKey()){try{finance=JSON.parse(event.newValue)||{};}catch{finance={};}renderGoals();}else if(event.key===GOALS_KEY){try{const updated=JSON.parse(event.newValue);if(Array.isArray(updated))goals=updated;}catch{}renderGoals();}else if(event.key===PLAN_SETTINGS_KEY){try{planSettings={...planSettings,...JSON.parse(event.newValue)};}catch{}renderGoals();}});

@@ -41,6 +41,36 @@ function renderBudgets(){
   const host=$('budgetList'); host.innerHTML=''; if(!state.budgets.length){host.innerHTML='<div class="budget-empty">No budgets yet. Add one to start tracking.</div>';return;}
   for(const b of state.budgets){const spent=state.transactions.filter(t=>t.type==='expense'&&t.category===b.category&&monthMatch(t.date)).reduce((s,t)=>s+t.amount,0);const pct=Math.min(100,b.limit?spent/b.limit*100:0);const row=document.createElement('div');row.className='budget-item';row.innerHTML=`<div class="budget-head"><div class="budget-name"><span class="budget-emoji">${emoji(b.category)}</span>${escapeHtml(b.category)}</div><span class="budget-values"><strong>${money(spent)}</strong> / ${money(b.limit)}</span></div><div class="progress-track"><div class="progress-fill ${spent>b.limit?'over':''}" style="width:${pct}%"></div></div>`;host.appendChild(row);}
 }
+function renderSmartInsights(){
+  const host=$('smartInsights');if(!host)return;host.replaceChildren();
+  const period=(offset)=>{const start=new Date(today.getFullYear(),today.getMonth()+offset,1),days=new Date(start.getFullYear(),start.getMonth()+1,0).getDate(),through=Math.min(today.getDate(),days);return {start,end:new Date(start.getFullYear(),start.getMonth(),through+1)};};
+  const inPeriod=range=>state.transactions.filter(tx=>{const date=new Date(`${tx.date}T12:00:00`);return !Number.isNaN(date.getTime())&&date>=range.start&&date<range.end;});
+  const current=inPeriod(period(0)),previous=inPeriod(period(-1)),currentExpenses=current.filter(tx=>tx.type==='expense'),previousExpenses=previous.filter(tx=>tx.type==='expense');
+  const insights=[];
+  const spendByCategory=list=>{const totals=new Map();for(const tx of list){const category=tx.category||'Other';totals.set(category,(totals.get(category)||0)+(Number(tx.amount)||0));}return totals;};
+  const currentByCategory=spendByCategory(currentExpenses),previousByCategory=spendByCategory(previousExpenses);
+  const foodCategory=[...new Set([...currentByCategory.keys(),...previousByCategory.keys()])].find(category=>/food|dining/i.test(category));
+  if(foodCategory){
+    const currentFood=currentByCategory.get(foodCategory)||0,previousFood=previousByCategory.get(foodCategory)||0;
+    if(previousFood>0){const percent=Math.round(Math.abs((currentFood-previousFood)/previousFood)*100);insights.push({icon:currentFood>previousFood?'↑':currentFood<previousFood?'↓':'→',title:currentFood>previousFood?`You spent ${percent}% more on ${foodCategory} this month`:currentFood<previousFood?`You spent ${percent}% less on ${foodCategory} this month`:`Your ${foodCategory.toLowerCase()} spending is unchanged`,detail:`${money(currentFood)} so far, compared with ${money(previousFood)} for the same dates last month.`,tone:currentFood>previousFood?'watch':'good'});}
+    else if(currentFood>0)insights.push({icon:'✳',title:`${foodCategory} spending is showing up this month`,detail:`You’ve recorded ${money(currentFood)} so far. There was no ${foodCategory.toLowerCase()} spending in the comparison period.`,tone:'neutral'});
+  }
+  const top=[...currentByCategory].sort((a,b)=>b[1]-a[1])[0];
+  if(top)insights.push({icon:'◆',title:`${top[0]} is your biggest spending category`,detail:`You’ve spent ${money(top[1])} on it this month.`,tone:'neutral'});
+  if(current.length&&previous.length){
+    const net=list=>list.reduce((sum,tx)=>sum+(tx.type==='income'?1:-1)*(Number(tx.amount)||0),0),currentNet=net(current),previousNet=net(previous),difference=currentNet-previousNet;
+    if(difference>0&&currentNet>0)insights.push({icon:'↗',title:`You saved ${money(difference)} more than last month`,detail:`Net savings are ${money(currentNet)} so far, compared with ${money(previousNet)} for the same dates last month.`,tone:'good'});
+    else if(difference>0)insights.push({icon:'↗',title:'Your net cash flow improved this month',detail:`It is up by ${money(difference)} compared with the same dates last month.`,tone:'good'});
+    else if(difference<0)insights.push({icon:'↘',title:'Your net savings are lower this month',detail:`Net savings changed by −${money(Math.abs(difference))} compared with the same dates last month.`,tone:'watch'});
+  }
+  if(!insights.length){const empty=document.createElement('p');empty.className='smart-insights-empty';empty.textContent=currentExpenses.length?'Add more transaction history to unlock month-to-month insights.':'No spending recorded yet this month. Add transactions to see your money patterns.';host.append(empty);return;}
+  for(const insight of insights){const item=document.createElement('article');item.className=`smart-insight ${insight.tone}`;const icon=document.createElement('span');icon.className='smart-insight-icon';icon.textContent=insight.icon;icon.setAttribute('aria-hidden','true');const copy=document.createElement('div');copy.className='smart-insight-copy';const title=document.createElement('strong');title.textContent=insight.title;const detail=document.createElement('span');detail.textContent=insight.detail;copy.append(title,detail);item.append(icon,copy);host.append(item);}
+}
+function renderNetWorthPreview(){
+  const totals=FolioNetWorth.summarize(FolioNetWorth.read());
+  $('overviewNetWorth').textContent=money(totals.netWorth);$('overviewAssets').textContent=money(totals.assets);$('overviewLoans').textContent=money(totals.loans);
+  $('overviewNetWorth').classList.toggle('negative-value',totals.netWorth<0);
+}
 function renderChart(){
   const mode=$('periodSelect').value;
   const startOfDay=date=>new Date(date.getFullYear(),date.getMonth(),date.getDate());
@@ -84,7 +114,7 @@ function renderChart(){
   for(const bucket of buckets){const group=document.createElement('div');group.className='bar-group';group.innerHTML=`<div class="bar expense-bar" style="height:${Math.max(bucket.expense?2:0,bucket.expense/max*92)}%" title="Expenses ${money(bucket.expense)}"></div><div class="bar income-bar" style="height:${Math.max(bucket.income?2:0,bucket.income/max*92)}%" title="Income ${money(bucket.income)}"></div>`;$('barChart').appendChild(group);const label=document.createElement('span');label.textContent=bucket.label;$('chartLabels').appendChild(label);}
   $('chartTotal').textContent=money(selectedTransactions.filter(tx=>tx.type==='expense').reduce((sum,tx)=>sum+tx.amount,0));
 }
-function render(){renderSummary();renderTransactions();renderBudgets();renderChart();renderBudgetAlerts($('budgetAlerts'),state);}
+function render(){renderSummary();renderTransactions();renderBudgets();renderChart();renderBudgetAlerts($('budgetAlerts'),state);renderSmartInsights();renderNetWorthPreview();}
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2400);}
 function openDialog(dialog){dialog.showModal();}
 $('todayLabel').textContent=today.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
@@ -110,11 +140,10 @@ $('emptyAdd').addEventListener('click',()=>openTransactionDialog('expense'));
 $('addBudget').addEventListener('click',()=>openDialog($('budgetDialog')));
 document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>btn.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));
-$('transactionForm').addEventListener('submit',e=>{e.preventDefault();const data=new FormData(e.currentTarget),type=data.get('type');state.transactions.unshift({id:crypto.randomUUID(),name:data.get('name').trim(),amount:Number(data.get('amount')),type,category:data.get('category'),date:data.get('date')});save();e.currentTarget.reset();$('txDate').value=dateKey(today);$('transactionDialog').close();toast(type==='income'?'Income added':'Transaction added');});
+$('transactionForm').addEventListener('submit',e=>{e.preventDefault();const data=new FormData(e.currentTarget),type=data.get('type'),tags=[...new Set(String(data.get('tags')||'').split(',').map(tag=>tag.trim()).filter(Boolean))];state.transactions.unshift({id:crypto.randomUUID(),name:data.get('name').trim(),amount:Number(data.get('amount')),type,category:data.get('category'),date:data.get('date'),notes:String(data.get('notes')||'').trim(),tags});save();e.currentTarget.reset();$('txDate').value=dateKey(today);$('transactionDialog').close();toast(type==='income'?'Income added':'Transaction added');});
 $('budgetForm').addEventListener('submit',e=>{e.preventDefault();const category=$('budgetCategory').value,limit=Number($('budgetLimit').value);const existing=state.budgets.find(b=>b.category===category);if(existing)existing.limit=limit;else state.budgets.push({category,limit});save();e.currentTarget.reset();$('budgetDialog').close();toast('Budget saved');});
 $('periodSelect').addEventListener('change',renderChart);
 $('learnMore').addEventListener('click',()=>toast('A calmer view of your money, one step at a time.'));
-$('viewTransactions').addEventListener('click',e=>{if(state.transactions.length>5){e.preventDefault();const tbody=$('transactionRows');tbody.innerHTML='';const list=[...state.transactions].sort((a,b)=>b.date.localeCompare(a.date));for(const tx of list){const tr=document.createElement('tr'),date=new Date(`${tx.date}T12:00:00`).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});tr.innerHTML=`<td><div class="transaction-info"><span class="tx-icon ${tx.type}">${emoji(tx.category)}</span>${escapeHtml(tx.name)}${tx.demo?'<span class="demo-badge">DEMO</span>':''}</div></td><td><span class="category-chip">${escapeHtml(tx.category)}</span></td><td>${date}</td><td class="tx-amount ${tx.type==='income'?'income':''}">${tx.type==='income'?'+':'−'}${money(tx.amount)}</td>`;tbody.appendChild(tr);}toast('Showing all transactions');}});
 $('clearDemoData').addEventListener('click',()=>{if(confirm('Remove the demo transactions from this account?')){state.transactions=state.transactions.filter(tx=>!tx.demo);save();toast('Demo transactions removed');}});
 function setMobileMenu(open){$('sidebar').classList.toggle('open',open);$('mobileBackdrop').hidden=!open;$('mobileMenu').setAttribute('aria-expanded',String(open));}
 $('mobileMenu').addEventListener('click',()=>setMobileMenu(!$('sidebar').classList.contains('open')));
@@ -136,3 +165,5 @@ if(!localStorage.getItem(demoSeedKey)){
   localStorage.setItem(demoSeedKey,'1');
 }
 render();
+window.addEventListener('folio-finance-updated',event=>{if(event.detail&&typeof event.detail==='object')state=event.detail;else{try{state=JSON.parse(localStorage.getItem(FolioAccounts.dataKey()))||structuredClone(defaults);}catch{state=structuredClone(defaults);}}render();});
+window.addEventListener('folio-net-worth-updated',renderNetWorthPreview);
