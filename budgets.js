@@ -1,7 +1,11 @@
 const $ = id => document.getElementById(id);
 const DEFAULT_BUDGETS=[{category:'Food & dining',limit:650},{category:'Shopping',limit:400},{category:'Transport',limit:250}];
+const DEFAULT_CATEGORIES=['Food & dining','Shopping','Transport','Housing','Entertainment','Health','Other'];
 let budgetState;
+let editingBudgetCategory=null;
 try{budgetState=JSON.parse(localStorage.getItem(FolioAccounts.dataKey()))||{transactions:[],budgets:structuredClone(DEFAULT_BUDGETS)};}catch{budgetState={transactions:[],budgets:structuredClone(DEFAULT_BUDGETS)};}
+if(!Array.isArray(budgetState.budgets))budgetState.budgets=structuredClone(DEFAULT_BUDGETS);
+if(!Array.isArray(budgetState.categories))budgetState.categories=[...new Set([...DEFAULT_CATEGORIES,...budgetState.budgets.map(item=>item.category),...(Array.isArray(budgetState.transactions)?budgetState.transactions.map(tx=>tx.category):[])].filter(Boolean))];
 const money=value=>`Nrs ${new Intl.NumberFormat('en-IN',{maximumFractionDigits:2,minimumFractionDigits:2}).format(value)}`;
 const today=new Date();
 const startToday=new Date(today.getFullYear(),today.getMonth(),today.getDate());
@@ -73,12 +77,44 @@ function renderBudgets(){
     const alertThreshold=Math.min(99,Math.max(1,Number(item.alertThreshold)||80));
     row.innerHTML=`<div class="all-budget-main"><div class="all-budget-name"><span class="budget-emoji">${categoryIcon[item.category]||'◈'}</span><span><strong></strong><small>Monthly limit ${money(item.limit)} · Alert at ${alertThreshold}%</small></span></div><div class="all-budget-numbers"><span>Spent<strong>${money(spent)}</strong></span><span>Budget<strong>${money(allowed)}</strong></span><span class="${remaining<0?'over-budget':''}">Remaining<strong>${money(remaining)}</strong></span><span class="budget-used">${pct}% used</span><button class="edit-budget" type="button">Edit</button></div></div>`;
     row.querySelector('.all-budget-name strong').textContent=item.category;
-    row.querySelector('.edit-budget').addEventListener('click',()=>{ $('budgetCategory').value=item.category;$('budgetLimit').value=item.limit;$('budgetAlertThreshold').value=alertThreshold;$('budgetDialog').showModal(); });
+    row.querySelector('.edit-budget').addEventListener('click',()=>openBudgetForm(item));
     host.appendChild(row);
   }
   renderBudgetAlerts($('budgetAlerts'),budgetState);
 }
 function saveBudgets(){localStorage.setItem(FolioAccounts.dataKey(),JSON.stringify(budgetState));renderBudgets();}
+function toggleCustomBudgetCategory(){
+  const custom=$('budgetCategory').value==='__new_custom__';$('customBudgetCategoryField').hidden=!custom;$('customBudgetCategory').required=custom;
+}
+function populateBudgetCategories(selected=''){
+  const select=$('budgetCategory');select.replaceChildren();
+  for(const category of budgetState.categories){const option=document.createElement('option');option.value=category;option.textContent=category;select.append(option);}
+  const custom=document.createElement('option');custom.value='__new_custom__';custom.textContent='＋ Create new category…';select.append(custom);
+  if(selected&&[...select.options].some(option=>option.value===selected))select.value=selected;
+}
+function openBudgetForm(item=null){
+  $('budgetForm').reset();editingBudgetCategory=item?.category||null;populateBudgetCategories(item?.category||budgetState.categories[0]||'__new_custom__');
+  const known=!!item&&budgetState.categories.includes(item.category);
+  $('budgetCategory').value=item?(known?item.category:'__new_custom__'):(budgetState.categories[0]||'__new_custom__');
+  $('customBudgetCategory').value=item&&!known?item.category:'';
+  $('budgetLimit').value=item?.limit??'';$('budgetAlertThreshold').value=item?Math.min(99,Math.max(1,Number(item.alertThreshold)||80)):80;
+  toggleCustomBudgetCategory();$('budgetDialog').showModal();
+}
+function renderBudgetCategories(){
+  const host=$('budgetCategoryList');host.replaceChildren();
+  if(!budgetState.categories.length){const empty=document.createElement('p');empty.className='budget-category-empty';empty.textContent='No categories yet. Add a category to create a budget for it.';host.append(empty);return;}
+  for(const category of [...budgetState.categories].sort((a,b)=>a.localeCompare(b))){
+    const row=document.createElement('div');row.className='budget-category-row';const name=document.createElement('strong');name.textContent=category;
+    const budget=budgetState.budgets.find(item=>item.category===category),detail=document.createElement('span');detail.textContent=budget?'Budget set':'No budget yet';
+    const remove=document.createElement('button');remove.type='button';remove.className='budget-category-delete';remove.textContent='Delete';remove.setAttribute('aria-label',`Delete ${category} category`);
+    remove.addEventListener('click',()=>{
+      const warning=budget?`Delete “${category}” and its budget? Existing transactions will remain in your history.`:`Delete “${category}”? Existing transactions will remain in your history.`;
+      if(!confirm(warning))return;
+      budgetState.categories=budgetState.categories.filter(item=>item!==category);budgetState.budgets=budgetState.budgets.filter(item=>item.category!==category);saveBudgets();renderBudgetCategories();
+    });
+    row.append(name,detail,remove);host.append(row);
+  }
+}
 function applyTheme(theme){
   document.documentElement.dataset.theme=theme;const dark=theme==='dark';
   $('themeIcon').textContent=dark?'☀':'☾';$('themeToggle').setAttribute('aria-label',dark?'Turn on light mode':'Turn on dark mode');$('themeToggle').title=dark?'Turn on light mode':'Turn on dark mode';
@@ -89,14 +125,30 @@ $('activeAccountName').textContent=`${FolioAccounts.current().name} account`;
 applyTheme(localStorage.getItem('folio-theme')==='dark'?'dark':'light');
 $('themeToggle').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';localStorage.setItem('folio-theme',next);applyTheme(next);});
 $('periodSelect').addEventListener('change',renderBudgets);
-$('addBudget').addEventListener('click',()=>{ $('budgetForm').reset();$('budgetAlertThreshold').value=80;$('budgetDialog').showModal(); });
-$('emptyAddBudget').addEventListener('click',()=>{ $('budgetForm').reset();$('budgetAlertThreshold').value=80;$('budgetDialog').showModal(); });
+$('addBudget').addEventListener('click',()=>openBudgetForm());
+$('emptyAddBudget').addEventListener('click',()=>openBudgetForm());
+$('budgetCategory').addEventListener('change',toggleCustomBudgetCategory);
+$('manageBudgetCategories').addEventListener('click',()=>{renderBudgetCategories();$('budgetCategoryDialog').showModal();});
+$('closeBudgetCategoryDialog').addEventListener('click',()=>$('budgetCategoryDialog').close());
+$('budgetCategoryDialog').addEventListener('click',event=>{if(event.target===$('budgetCategoryDialog'))$('budgetCategoryDialog').close();});
+$('budgetCategoryForm').addEventListener('submit',event=>{
+  event.preventDefault();const name=$('newBudgetCategory').value.trim();if(!name)return;
+  if(budgetState.categories.some(category=>category.toLowerCase()===name.toLowerCase())){alert(`The category “${name}” already exists.`);return;}
+  budgetState.categories.push(name);saveBudgets();renderBudgetCategories();event.currentTarget.reset();
+});
 document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();}));
 $('budgetForm').addEventListener('submit',event=>{
-  event.preventDefault();const category=$('budgetCategory').value,limit=Number($('budgetLimit').value),alertThreshold=Number($('budgetAlertThreshold').value);
-  const existing=budgetState.budgets.find(item=>item.category===category);
-  if(existing){existing.limit=limit;existing.alertThreshold=alertThreshold;}else budgetState.budgets.push({category,limit,alertThreshold});
+  event.preventDefault();const creatingCategory=$('budgetCategory').value==='__new_custom__',category=creatingCategory?$('customBudgetCategory').value.trim():$('budgetCategory').value,limit=Number($('budgetLimit').value),alertThreshold=Number($('budgetAlertThreshold').value);
+  if(!category){$('customBudgetCategory').focus();return;}
+  const canonicalCategory=budgetState.categories.find(item=>item.toLowerCase()===category.toLowerCase());
+  const finalCategory=canonicalCategory||category;
+  const existing=editingBudgetCategory?budgetState.budgets.find(item=>item.category===editingBudgetCategory):budgetState.budgets.find(item=>item.category===finalCategory);
+  const duplicate=budgetState.budgets.find(item=>item.category===finalCategory&&item!==existing);
+  if(duplicate){alert(`A budget for ${finalCategory} already exists.`);return;}
+  if(!canonicalCategory)budgetState.categories.push(category);
+  if(existing){if(existing.category!==finalCategory){if(Array.isArray(budgetState.transactions))for(const tx of budgetState.transactions)if(tx.category===editingBudgetCategory)tx.category=finalCategory;budgetState.categories=budgetState.categories.filter(item=>item!==editingBudgetCategory);}existing.category=finalCategory;existing.limit=limit;existing.alertThreshold=alertThreshold;}else budgetState.budgets.push({category:finalCategory,limit,alertThreshold});
+  editingBudgetCategory=null;
   saveBudgets();$('budgetDialog').close();event.currentTarget.reset();
 });
 function setMobileMenu(open){$('sidebar').classList.toggle('open',open);$('mobileBackdrop').hidden=!open;$('mobileMenu').setAttribute('aria-expanded',String(open));}

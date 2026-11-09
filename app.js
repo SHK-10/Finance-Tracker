@@ -126,7 +126,8 @@ $('addIncome').addEventListener('click',()=>openTransactionDialog('income'));
 $('txType').addEventListener('change',e=>setTransactionCategories(e.target.value));
 function setTransactionCategories(type){
   const category=$('txCategory'), current=category.value;
-  const choices=type==='income'?['Salary','Freelance','Business','Investment','Gift','Other']:['Food & dining','Shopping','Transport','Housing','Entertainment','Health','Other'];
+  const defaults=Array.isArray(state.categories)?state.categories:['Food & dining','Shopping','Transport','Housing','Entertainment','Health','Other'];
+  const choices=type==='income'?['Salary','Freelance','Business','Investment','Gift','Other']:[...new Set(defaults)];
   category.replaceChildren(...choices.map(value=>{const option=document.createElement('option');option.value=value;option.textContent=value;return option;}));
   category.value=choices.includes(current)?current:choices[0];
 }
@@ -167,3 +168,5 @@ if(!localStorage.getItem(demoSeedKey)){
 render();
 window.addEventListener('folio-finance-updated',event=>{if(event.detail&&typeof event.detail==='object')state=event.detail;else{try{state=JSON.parse(localStorage.getItem(FolioAccounts.dataKey()))||structuredClone(defaults);}catch{state=structuredClone(defaults);}}render();});
 window.addEventListener('folio-net-worth-updated',renderNetWorthPreview);
+window.addEventListener('folio-debts-updated',renderNetWorthPreview);
+window.addEventListener('storage',event=>{if(event.key===`${FolioAccounts.dataKey()}-debt-tracker`)renderNetWorthPreview();});

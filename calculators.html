@@ -24,7 +24,7 @@
         <a class="nav-link" href="goals.html"><span class="nav-icon">◎</span>Financial plan</a>
         <a class="nav-link" href="reminders.html"><span class="nav-icon">♧</span>Reminders</a><a class="nav-link" href="recurring.html"><span class="nav-icon">⟳</span>Recurring transactions</a><a class="nav-link" href="net-worth.html"><span class="nav-icon">⌂</span>Net worth</a>
         <details class="nav-group"><summary class="nav-link"><span class="nav-icon">⌁</span>Analytics <span class="nav-caret">⌄</span></summary><div class="nav-children"><a class="nav-sublink" href="cashflow.html">Cash flow</a><a class="nav-sublink" href="reporting.html">Reporting</a></div></details>
-        <a class="nav-link active" href="calculators.html"><span class="nav-icon">⌗</span>Calculator</a>
+        <a class="nav-link" href="debt-tracker.html"><span class="nav-icon">↘</span>EMI and loan tracker</a><a class="nav-link active" href="calculators.html"><span class="nav-icon">⌗</span>Calculator</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="upgrade-card"><div class="upgrade-symbol">✳</div><strong>A little more clarity</strong><p>Your money story, all in one place.</p><a class="upgrade-btn" href="index.html#overview">Back to overview <span>↗</span></a></div>
@@ -74,7 +74,7 @@
     </main>
   </div>
   <dialog id="accountDialog" class="modal account-modal"><div class="modal-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2>Switch account</h2><p class="account-modal-copy">Keep personal and family finances in separate profiles.</p></div><button type="button" class="close-btn" data-account-close aria-label="Close">×</button></div><div id="accountList" class="account-list"></div><form id="createAccountForm" class="create-account-form"><label class="field-label" for="newAccountName">Create another account</label><div class="create-account-row"><input class="input" id="newAccountName" maxlength="32" placeholder="e.g. Travel fund" required><button class="secondary-btn" type="submit">＋ Create</button></div></form><p class="account-local-note">Profiles are saved in this browser on this device.</p></dialog>
-  <script src="account-data.js"></script><script src="recurring-scheduler.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><script src="supabase-storage.js"></script><script src="account-data.js"></script><script src="recurring-scheduler.js"></script>
   <script src="reminder-scheduler.js"></script>
   <script src="calculators.js"></script>
   <script src="account-switcher.js"></script>

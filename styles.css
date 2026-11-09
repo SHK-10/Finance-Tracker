@@ -126,6 +126,50 @@ td{height:46px}
 .calc-breakdown span{display:grid;gap:2px;color:#898f85;font-size:8px}
 .calc-breakdown strong{font-size:9px;font-weight:600;color:#4a5148}
 .calc-note{font-size:8px;line-height:1.5;color:#9a9f96;margin:10px 1px 0}
+.debt-tracker-panel{margin-top:16px}
+.debt-tracker-panel>.panel-heading{align-items:center}
+.debt-tracker-panel>.panel-heading .primary-btn{min-height:36px;padding:0 12px;font-size:10px;white-space:nowrap}
+.debt-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:17px}
+.debt-summary-grid article{display:grid;gap:7px;min-width:0;padding:13px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.debt-summary-grid article>strong{font:700 17px var(--display);overflow-wrap:anywhere}
+.debt-loan-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:13px}
+.debt-loan-card{min-width:0;padding:15px;border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+.debt-loan-card.paid-off{opacity:.78}
+.debt-loan-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.debt-loan-identity{display:flex;align-items:center;gap:9px;min-width:0}
+.debt-loan-icon{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:8px;background:#faeee8;color:#a85d3b;font-size:15px}
+.debt-loan-title{display:grid;gap:3px;min-width:0}.debt-loan-title strong{overflow-wrap:anywhere;font:700 12px var(--display)}.debt-loan-title small{color:var(--muted);font-size:9px}
+.debt-loan-balance{display:grid;gap:4px;text-align:right}.debt-loan-balance span{color:var(--muted);font-size:8px;letter-spacing:.4px}.debt-loan-balance strong{font:700 16px var(--display);overflow-wrap:anywhere}
+.debt-emi-status{display:grid;gap:3px;margin-top:12px;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg)}
+.debt-emi-status strong{font-size:9px}.debt-emi-status small{color:var(--muted);font-size:8px;line-height:1.4}
+.debt-emi-status.due,.debt-emi-status.overdue{border-color:#f0d6c7;background:#fff8f3;color:#75472f}
+.debt-emi-status.paid{border-color:#cfe3d2;background:#f2f8f2;color:#347447}
+.debt-progress-track{height:6px;margin-top:14px;overflow:hidden;border-radius:8px;background:var(--line)}
+.debt-progress-fill{height:100%;border-radius:inherit;background:var(--green)}
+.debt-loan-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
+.debt-loan-stats>div{display:grid;gap:4px;min-width:0}.debt-loan-stats span{color:var(--muted);font-size:8px}.debt-loan-stats strong{font-size:10px;overflow-wrap:anywhere}
+.debt-loan-actions{display:flex;align-items:center;gap:7px;margin-top:13px}.debt-loan-actions button{min-height:31px;padding:0 9px;font-size:9px}.debt-loan-actions .debt-repay-button{flex:1}
+.debt-delete-button{color:#a85d3b}
+.debt-payment-history{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.debt-payment-history summary{color:var(--green-dark);font-size:9px;font-weight:600;cursor:pointer}
+.debt-payment-list{display:grid;margin-top:6px}
+.debt-payment-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
+.debt-payment-info{display:grid;gap:3px;min-width:0}.debt-payment-info strong{font-size:9px}.debt-payment-info small{color:var(--muted);font-size:8px;overflow-wrap:anywhere}
+.debt-payment-row>strong{font-size:9px;white-space:nowrap}.debt-undo-payment{padding:4px;border:0;background:transparent;color:var(--muted);font:9px var(--font);cursor:pointer}
+.debt-empty{margin-top:15px;padding:25px 14px;border:1px dashed var(--line);border-radius:8px;text-align:center}.debt-empty[hidden]{display:none}.debt-empty>strong{font:700 12px var(--display)}.debt-empty p{margin:6px 0 12px;color:var(--muted);font-size:10px}.debt-empty .secondary-btn{min-height:32px;padding:0 10px;font-size:9px}
+.debt-tracker-note{margin-top:12px}
+.debt-dialog{max-height:calc(100dvh - 24px);overflow:auto}
+.debt-payment-balance{margin:8px 0 0;color:var(--muted);font-size:10px}
+.debt-principal-help{display:block;margin:6px 0 0;color:var(--muted);font-size:9px;line-height:1.45}
+:root[data-theme="dark"] .debt-loan-icon{background:#45352c;color:#e1a17f}
+:root[data-theme="dark"] .debt-loan-card{background:#202521}
+:root[data-theme="dark"] .debt-progress-track{background:#384238}
+:root[data-theme="dark"] .debt-payment-history summary{color:#9ed5a7}
+:root[data-theme="dark"] .debt-emi-status.due,:root[data-theme="dark"] .debt-emi-status.overdue{border-color:#634336;background:#30231e;color:#f0b596}
+:root[data-theme="dark"] .debt-emi-status.paid{border-color:#3e5943;background:#26362a;color:#9ed5a7}
+@media(max-width:760px){.debt-loan-list{grid-template-columns:1fr}}
+@media(max-width:760px){.debt-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.debt-summary-grid{grid-template-columns:1fr}.debt-tracker-panel>.panel-heading{align-items:flex-start}.debt-tracker-panel>.panel-heading .primary-btn{padding:0 8px;font-size:9px}}
 :root[data-theme="dark"] .calc-field>span{color:#bdc5ba}
 :root[data-theme="dark"] .suffix-input{background:#1b211d;border-color:#3a443c;color:var(--ink)}
 :root[data-theme="dark"] .suffix-input input{color:var(--ink)}
@@ -336,8 +380,19 @@ td{font-size:13px}
 .budget-stat>strong{font:700 22px var(--display);letter-spacing:-.6px;color:var(--ink)}
 .budget-stat>small{font-size:11px;color:var(--muted)}
 .budget-detail-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:28px 0 12px}
+.budget-category-heading-actions{display:flex;align-items:center;gap:9px}
+.budget-category-heading-actions .secondary-btn{min-height:32px;padding:0 10px;font-size:10px}
 .budget-detail-heading h2{margin:0;font:700 16px var(--display)}
 .budget-detail-heading p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.budget-category-dialog{max-height:calc(100dvh - 24px);overflow:auto}
+.budget-category-create{margin-top:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.budget-category-create .field-label{display:block;margin-bottom:7px}
+.budget-category-list{display:grid;max-height:360px;overflow:auto}
+.budget-category-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.budget-category-row strong{min-width:0;overflow-wrap:anywhere;font-size:11px}
+.budget-category-row>span{color:var(--muted);font-size:9px}
+.budget-category-delete{border:0;background:transparent;color:#b36b58;font:600 10px var(--font);cursor:pointer;padding:7px}
+.budget-category-empty{color:var(--muted);font-size:11px}
 .budget-count{font-size:11px;color:var(--muted)}
 .all-budget-list{display:grid}
 .all-budget-row{padding:16px 2px;border-top:1px solid var(--line)}
@@ -378,6 +433,10 @@ td{font-size:13px}
   .budget-page-heading{align-items:flex-start}
   .budget-page-heading .select-control{max-width:118px}
   .budget-detail-heading{align-items:flex-start}
+  .budget-category-heading-actions{align-items:flex-end;flex-direction:column}
+  .budget-category-row{grid-template-columns:minmax(0,1fr) auto;gap:5px}
+  .budget-category-row>span{grid-column:1}
+  .budget-category-delete{grid-column:2;grid-row:1/3}
   .budget-stat>strong{font-size:18px}
   .all-budget-row{padding:13px 0}
 }
@@ -508,7 +567,6 @@ td{font-size:13px}
 .goal-section-heading p{margin:6px 0 0;color:var(--muted);font-size:12px}
 .goal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .goal-card{min-width:0;padding:19px 20px 16px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
-.goal-card.emergency-goal{border-top:3px solid var(--green)}
 .goal-card-top{display:flex;align-items:center;gap:9px;min-height:32px}
 .goal-icon{height:32px;width:32px;display:grid;place-items:center;border-radius:9px;background:var(--green-pale);color:var(--green-dark);font-size:16px}
 .goal-type{color:var(--muted);font-size:11px;font-weight:600}
@@ -523,8 +581,12 @@ td{font-size:13px}
 .goal-date{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:19px;padding-top:13px;border-top:1px solid var(--line)}
 .goal-date span{color:var(--muted);font-size:10px}
 .goal-date strong{font-size:11px;text-align:right}
-.goal-card-actions{display:flex;align-items:center;gap:8px;margin-top:14px}
+.goal-card-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
 .goal-card-actions .secondary-btn{height:34px;font-size:10px}
+.goal-withdraw{border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--muted);font:600 10px var(--font);cursor:pointer;padding:8px 10px}
+.goal-withdraw:hover:not(:disabled){color:var(--green-dark);border-color:var(--green)}
+.goal-withdraw:disabled{opacity:.45;cursor:not-allowed}
+.contribution-error{margin:8px 0 0;color:#a5563b;font-size:11px;line-height:1.4}
 .emergency-plan-panel{margin-top:16px}
 .emergency-fund-status{padding:6px 9px;border-radius:20px;background:#f0eee5;color:#72663d;font-size:9px;font-weight:700;white-space:nowrap}
 .emergency-fund-status.insufficient{background:#fae9e1;color:#a5563b}

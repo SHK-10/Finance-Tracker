@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const GOALS_KEY = `${FolioAccounts.dataKey()}-goals`;
 const PLAN_SETTINGS_KEY = `${GOALS_KEY}-settings`;
+const EMERGENCY_DELETED_KEY = `${GOALS_KEY}-emergency-deleted`;
 const REMINDERS_KEY = `${FolioAccounts.dataKey()}-reminders`;
 const money = value => `Nrs ${new Intl.NumberFormat('en-IN',{maximumFractionDigits:2,minimumFractionDigits:2}).format(value)}`;
 const icons = {emergency:'✚',debt:'↘',retirement:'↗',home:'⌂',vehicle:'↗',travel:'✈',education:'▤',health:'✚',business:'◇',custom:'✳'};
@@ -12,13 +13,24 @@ try { finance = JSON.parse(localStorage.getItem(FolioAccounts.dataKey())) || {};
 let goals;
 try { goals = JSON.parse(localStorage.getItem(GOALS_KEY)); } catch { goals = null; }
 if (!Array.isArray(goals)) goals = [{id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()}];
-if(!goals.some(goal=>goal.type==='emergency'))goals.unshift({id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()});
+if(!goals.some(goal=>goal.type==='emergency')&&localStorage.getItem(EMERGENCY_DELETED_KEY)!=='true')goals.unshift({id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()});
 let planSettings={salaryDay:null,emergencyMonths:3};
 try{planSettings={...planSettings,...JSON.parse(localStorage.getItem(PLAN_SETTINGS_KEY))};}catch{}
 planSettings.emergencyMonths=Number(planSettings.emergencyMonths)===6?6:3;
 
 function saveGoals(){localStorage.setItem(GOALS_KEY,JSON.stringify(goals));window.dispatchEvent(new CustomEvent('folio-financial-plan-changed',{detail:goals}));renderGoals();}
 function savePlanSettings(){localStorage.setItem(PLAN_SETTINGS_KEY,JSON.stringify(planSettings));}
+let contributionMode='add';
+function openContributionDialog(goal,mode='add'){
+  contributionMode=mode;$('contributionForm').reset();$('contributionGoalId').value=goal.id;
+  const withdrawing=mode==='withdraw';
+  $('contributionTitle').textContent=`${withdrawing?'Withdraw from':'Add to'} ${goal.name}`;
+  $('contributionAmountLabel').textContent=withdrawing?'Amount to withdraw':'Amount to add';
+  $('contributionAmount').max=withdrawing?String(Math.max(0,Number(goal.saved)||0)):'';
+  $('contributionSubmit').innerHTML=withdrawing?'Withdraw amount <span>→</span>':'Add savings <span>→</span>';
+  $('contributionError').hidden=true;$('contributionError').textContent='';
+  $('contributionDialog').showModal();
+}
 function salaryTransactions(){return (Array.isArray(finance.transactions)?finance.transactions:[]).filter(tx=>tx.type==='income'&&(/salary/i.test(String(tx.category||''))||/salary/i.test(String(tx.name||''))));}
 function monthlyEssentialCosts(){
   const transactions=(Array.isArray(finance.transactions)?finance.transactions:[]),now=new Date(),first=new Date(now.getFullYear(),now.getMonth()-5,1),monthTotals=new Map();let earliest=null;
@@ -68,23 +80,16 @@ function estimatedDate(goal,monthlyRate){
   const date=new Date(today.getFullYear(),today.getMonth()+months,1);
   return `Around ${date.toLocaleDateString('en-US',{month:'long',year:'numeric'})}`;
 }
-function renderEmergencyPlan(){
-  let emergency=goals.find(goal=>goal.type==='emergency'),newEmergency=false;if(!emergency){emergency={id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()};goals.unshift(emergency);newEmergency=true;}
-  const estimate=monthlyEssentialCosts(),minimum=estimate.average*3,recommended=estimate.average*6,selected=planSettings.emergencyMonths===6?6:3;
-  let emergencyChanged=newEmergency;if(Number(emergency.targetMonths)!==selected){emergency.targetMonths=selected;emergencyChanged=true;}
-  if(estimate.average>0&&Math.abs((Number(emergency.target)||0)-estimate.average*selected)>0.01){emergency.target=estimate.average*selected;emergencyChanged=true;}
-  if(emergencyChanged)localStorage.setItem(GOALS_KEY,JSON.stringify(goals));
-  $('essentialMonthlyEstimate').textContent=money(estimate.average);$('essentialEstimateBasis').textContent=estimate.months?`Average of ${estimate.months} recent ${estimate.months===1?'month':'months'} of essential spending`:'Add essential expenses to calculate a personalized range';
-  $('emergencyMinimumTarget').textContent=money(minimum);$('emergencyRecommendedTarget').textContent=money(recommended);$('emergencyTargetMonths').value=String(selected);
-  const saved=Number(emergency.saved)||0,status=$('emergencyFundStatus'),alertBox=$('emergencyFundAlert');status.className='emergency-fund-status';
-  if(!estimate.average){status.textContent='Needs expense data';status.classList.add('neutral');alertBox.textContent='Record essential expenses to calculate your 3–6 month emergency fund guideline. You can still add savings to the emergency fund.';}
-  else if(saved<minimum){status.textContent='Below minimum';status.classList.add('insufficient');alertBox.textContent=`Your emergency fund is ${money(minimum-saved)} below the 3-month minimum. Add to this fund when you can.`;}
-  else if(saved<recommended){status.textContent='Minimum met';status.classList.add('building');alertBox.textContent=`Your 3-month minimum is covered. Add ${money(recommended-saved)} to reach the 6-month safety target.`;}
-  else{status.textContent='Safety target met';status.classList.add('ready');alertBox.textContent='Your emergency fund covers at least six months of estimated essential costs.';}
-  if(!planSettings.salaryDay){const latest=salaryTransactions().sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];if(latest){const date=new Date(`${latest.date}T12:00:00`);if(!Number.isNaN(date.getTime())){planSettings.salaryDay=date.getDate();savePlanSettings();}}}
-  $('salaryDaySelect').value=planSettings.salaryDay?String(planSettings.salaryDay):'';
-  $('salaryDayDescription').textContent=planSettings.salaryDay?`A monthly check-in is scheduled for day ${planSettings.salaryDay}. You’ll only be notified if the fund is below the 3-month minimum.`:'Choose your usual payday or record an income categorized as Salary to set it automatically.';
-  syncPaydayReminder();
+function updateEmergencyGoal(){
+  let emergency=goals.find(goal=>goal.type==='emergency'),changed=false;
+  if(!emergency&&localStorage.getItem(EMERGENCY_DELETED_KEY)==='true')return {emergency:null,estimate:monthlyEssentialCosts(),months:planSettings.emergencyMonths};
+  if(!emergency){emergency={id:'emergency-fund',name:'Emergency fund',type:'emergency',target:0,saved:0,targetMonths:3,createdAt:new Date().toISOString()};goals.unshift(emergency);changed=true;}
+  if(!emergency.configured&&(Number(emergency.saved)>0||emergency.customTarget)){emergency.configured=true;changed=true;}
+  const estimate=monthlyEssentialCosts(),months=planSettings.emergencyMonths===6?6:3;
+  if(Number(emergency.targetMonths)!==months){emergency.targetMonths=months;changed=true;}
+  if(!emergency.customTarget&&estimate.average>0&&Math.abs((Number(emergency.target)||0)-estimate.average*months)>0.01){emergency.target=estimate.average*months;changed=true;}
+  if(changed)localStorage.setItem(GOALS_KEY,JSON.stringify(goals));
+  return {emergency,estimate,months};
 }
 const suggestedPlans=[
   {type:'debt',name:'Pay off high-interest debt',detail:'Reduce costly debt and free up future income.'},
@@ -94,12 +99,14 @@ const suggestedPlans=[
   {type:'education',name:'Education and skills',detail:'Invest in learning and career opportunities.'}
 ];
 function renderSuggestions(){
-  const host=$('suggestedGoals');host.replaceChildren();const available=suggestedPlans.filter(plan=>!goals.some(goal=>goal.type===plan.type));
+  const host=$('suggestedGoals');host.replaceChildren();const emergency=updateEmergencyGoal().emergency;
+  const emergencyPlan={type:'emergency',name:'Emergency fund',detail:'Build a reserve for unexpected costs and essential expenses.'};
+  const available=[emergencyPlan,...suggestedPlans.filter(plan=>!goals.some(goal=>goal.type===plan.type))];
   if(!available.length){const note=document.createElement('p');note.className='suggested-goals-empty';note.textContent='You have added all the suggested goal types. Create a custom goal any time.';host.append(note);return;}
-  for(const plan of available){const card=document.createElement('article');card.className='suggested-goal-card';const icon=document.createElement('span');icon.className='suggested-goal-icon';icon.textContent=icons[plan.type]||'✳';const title=document.createElement('strong');title.textContent=plan.name;const detail=document.createElement('p');detail.textContent=plan.detail;const button=document.createElement('button');button.type='button';button.className='secondary-btn';button.textContent='＋ Add goal';button.addEventListener('click',()=>openGoalEditor(null,plan));card.append(icon,title,detail,button);host.append(card);}
+  for(const plan of available){const card=document.createElement('article');card.className='suggested-goal-card';const icon=document.createElement('span');icon.className='suggested-goal-icon';icon.textContent=icons[plan.type]||'✳';const title=document.createElement('strong');title.textContent=plan.name;const detail=document.createElement('p');detail.textContent=plan.detail;const button=document.createElement('button');button.type='button';button.className='secondary-btn';button.textContent='＋ Add goal';button.addEventListener('click',()=>plan.type==='emergency'?openGoalEditor(emergency):openGoalEditor(null,plan));card.append(icon,title,detail,button);host.append(card);}
 }
 function renderGoals(){
-  renderEmergencyPlan();renderSuggestions();
+  renderSuggestions();
   const rate=recentMonthlySavings();
   const total=goals.reduce((sum,goal)=>sum+Number(goal.saved||0),0);
   $('totalSaved').textContent=money(total);
@@ -107,41 +114,42 @@ function renderGoals(){
   $('goalCount').textContent=`Across ${goals.length} ${goals.length===1?'goal':'goals'}`;
   $('activeGoalCount').textContent=goals.filter(goal=>Number(goal.saved)<Number(goal.target)).length;
   const host=$('goalList');host.innerHTML='';
-  goals.filter(goal=>goal.type!=='emergency').forEach(goal=>{
+  goals.forEach(goal=>{
     const target=Math.max(0,Number(goal.target)||0),saved=Math.max(0,Number(goal.saved)||0),pct=target?Math.min(100,saved/target*100):0;
     const card=document.createElement('article');card.className=`goal-card${goal.type==='emergency'?' emergency-goal':''}`;
-    card.innerHTML=`<div class="goal-card-top"><span class="goal-icon">${icons[goal.type]||icons.custom}</span><span class="goal-type">${labels[goal.type]||labels.custom}</span>${goal.type==='emergency'?'<span class="goal-featured">ESSENTIAL</span>':''}</div><h3 class="goal-name"></h3><div class="goal-amounts"><strong>${money(saved)}</strong><span>of ${money(target)}</span></div><div class="goal-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${Math.round(pct)} percent saved"><div class="goal-progress-fill" style="width:${pct}%"></div></div><div class="goal-progress-meta"><span>${Math.round(pct)}% saved</span><span>${money(Math.max(0,target-saved))} to go</span></div><div class="goal-date"><span>Estimated completion</span><strong>${estimatedDate(goal,rate)}</strong></div><div class="goal-card-actions"><button class="secondary-btn goal-add" type="button">＋ Add savings</button><button class="goal-edit" type="button" aria-label="Edit goal">Edit</button>${goal.type==='emergency'?'':'<button class="goal-delete" type="button" aria-label="Delete goal">Delete</button>'}</div>`;
+    card.innerHTML=`<div class="goal-card-top"><span class="goal-icon">${icons[goal.type]||icons.custom}</span><span class="goal-type">${labels[goal.type]||labels.custom}</span>${goal.type==='emergency'?'<span class="goal-featured">ESSENTIAL</span>':''}</div><h3 class="goal-name"></h3><div class="goal-amounts"><strong>${money(saved)}</strong><span>of ${money(target)}</span></div><div class="goal-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${Math.round(pct)} percent saved"><div class="goal-progress-fill" style="width:${pct}%"></div></div><div class="goal-progress-meta"><span>${Math.round(pct)}% saved</span><span>${money(Math.max(0,target-saved))} to go</span></div><div class="goal-date"><span>Estimated completion</span><strong>${estimatedDate(goal,rate)}</strong></div><div class="goal-card-actions"><button class="secondary-btn goal-add" type="button">＋ Add savings</button><button class="goal-withdraw" type="button" aria-label="Withdraw from goal" ${saved<=0?'disabled':''}>Withdraw</button><button class="goal-edit" type="button" aria-label="Edit goal">Edit</button><button class="goal-delete" type="button" aria-label="Delete goal">Delete</button></div>`;
     card.querySelector('.goal-name').textContent=goal.name;
-    card.querySelector('.goal-add').addEventListener('click',()=>{$('contributionForm').reset();$('contributionGoalId').value=goal.id;$('contributionTitle').textContent=`Add to ${goal.name}`;$('contributionDialog').showModal();});
+    card.querySelector('.goal-add').addEventListener('click',()=>openContributionDialog(goal,'add'));
+    card.querySelector('.goal-withdraw').addEventListener('click',()=>openContributionDialog(goal,'withdraw'));
     card.querySelector('.goal-edit').addEventListener('click',()=>openGoalEditor(goal));
-    const remove=card.querySelector('.goal-delete');if(remove)remove.addEventListener('click',()=>{goals=goals.filter(item=>item.id!==goal.id);saveGoals();});
+    const remove=card.querySelector('.goal-delete');if(remove)remove.addEventListener('click',()=>{goals=goals.filter(item=>item.id!==goal.id);if(goal.type==='emergency')localStorage.setItem(EMERGENCY_DELETED_KEY,'true');saveGoals();});
     host.appendChild(card);
   });
 }
 function openGoalEditor(goal,suggestion=null){
-  $('goalForm').reset();$('goalId').value=goal?.id||'';$('goalName').value=goal?.name||'';$('goalType').value=goal?.type||'custom';const estimatedEmergencyTarget=monthlyEssentialCosts().average*planSettings.emergencyMonths;$('goalTarget').value=goal?.type==='emergency'?Math.max(1,estimatedEmergencyTarget||Number(goal.target)||1):goal?.target||'';$('goalCurrent').value=goal?.saved||0;
+  $('goalForm').reset();$('goalId').value=goal?.id||'';$('goalName').value=goal?.name||'';$('goalType').value=goal?.type||'custom';const estimatedEmergencyTarget=monthlyEssentialCosts().average*planSettings.emergencyMonths,existingEmergencyTarget=Number(goal?.target)||0;$('goalTarget').value=goal?.type==='emergency'?(goal.customTarget?existingEmergencyTarget:estimatedEmergencyTarget||existingEmergencyTarget||''):goal?.target||'';$('goalCurrent').value=goal?.saved||0;
   if(suggestion){$('goalName').value=suggestion.name;$('goalType').value=suggestion.type;}
-  $('goalDialogTitle').textContent=goal?'Edit financial goal':'Create a financial goal';$('goalDialogEyebrow').textContent=goal?'UPDATE YOUR PLAN':'YOUR NEXT MILESTONE';$('goalName').readOnly=goal?.type==='emergency';$('goalType').disabled=goal?.type==='emergency';$('goalTarget').readOnly=goal?.type==='emergency';$('goalDialog').showModal();
+  $('emergencyRange').value=String(goal?.targetMonths||planSettings.emergencyMonths);$('emergencyRangeField').classList.toggle('hidden',$('goalType').value!=='emergency');
+  $('goalDialogTitle').textContent=goal?'Edit financial goal':'Create a financial goal';$('goalDialogEyebrow').textContent=goal?'UPDATE YOUR PLAN':'YOUR NEXT MILESTONE';$('goalName').readOnly=goal?.type==='emergency';$('goalType').disabled=goal?.type==='emergency';$('goalTarget').readOnly=false;$('goalDialog').showModal();
 }
 function applyTheme(theme){document.documentElement.dataset.theme=theme;const dark=theme==='dark';$('themeIcon').textContent=dark?'☀':'☾';$('themeToggle').setAttribute('aria-label',dark?'Turn on light mode':'Turn on dark mode');$('themeToggle').title=dark?'Turn on light mode':'Turn on dark mode';document.querySelector('meta[name="theme-color"]').content=dark?'#171b18':'#f5f6f2';}
 $('todayLabel').textContent=today.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 applyTheme(localStorage.getItem('folio-theme')==='dark'?'dark':'light');
 $('themeToggle').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';localStorage.setItem('folio-theme',next);applyTheme(next);});
 $('createGoalButton').addEventListener('click',()=>openGoalEditor(null));
-$('addEmergencySavings').addEventListener('click',()=>{const fund=goals.find(goal=>goal.type==='emergency');if(!fund)return;$('contributionForm').reset();$('contributionGoalId').value=fund.id;$('contributionTitle').textContent='Add to Emergency fund';$('contributionDialog').showModal();});
-$('goalType').addEventListener('change',()=>{if(!$('goalId').value)$('goalName').value=$('goalType').value==='custom'?'':labels[$('goalType').value]||'';});
-for(let day=1;day<=31;day++){const option=document.createElement('option');option.value=String(day);option.textContent=`${day}${day===1?'st':day===2?'nd':day===3?'rd':'th'} of each month`;$('salaryDaySelect').append(option);}
-$('salaryDaySelect').addEventListener('change',()=>{planSettings.salaryDay=$('salaryDaySelect').value?Number($('salaryDaySelect').value):null;savePlanSettings();renderGoals();});
-$('emergencyTargetMonths').addEventListener('change',()=>{planSettings.emergencyMonths=Number($('emergencyTargetMonths').value)===6?6:3;savePlanSettings();renderGoals();});
+$('goalType').addEventListener('change',()=>{const emergency=$('goalType').value==='emergency';if(!$('goalId').value)$('goalName').value=$('goalType').value==='custom'?'':labels[$('goalType').value]||'';$('emergencyRangeField').classList.toggle('hidden',!emergency);if(emergency){$('emergencyRange').value=String(planSettings.emergencyMonths);const estimate=monthlyEssentialCosts().average;if(estimate>0)$('goalTarget').value=String(estimate*planSettings.emergencyMonths);}});
+$('emergencyRange').addEventListener('change',()=>{const months=Number($('emergencyRange').value)===6?6:3,estimate=monthlyEssentialCosts().average;planSettings.emergencyMonths=months;if(estimate>0)$('goalTarget').value=String(estimate*months);});
 $('goalForm').addEventListener('submit',event=>{
   event.preventDefault();const id=$('goalId').value,name=$('goalName').value.trim(),type=$('goalType').value,target=Number($('goalTarget').value),saved=Number($('goalCurrent').value);
   if(!name||target<=0||saved<0)return;
   if(!id&&type==='emergency'&&goals.some(goal=>goal.type==='emergency')){alert('An emergency fund tracker already exists. Edit that tracker to change it.');return;}
-  if(id){const goal=goals.find(item=>item.id===id);if(goal){goal.name=goal.type==='emergency'?'Emergency fund':name;goal.type=goal.type==='emergency'?'emergency':type;goal.target=goal.type==='emergency'?(monthlyEssentialCosts().average?monthlyEssentialCosts().average*planSettings.emergencyMonths:Number(goal.target)||0):target;goal.targetMonths=planSettings.emergencyMonths;goal.saved=saved;}}
-  else goals.push({id:crypto.randomUUID(),name,type,target,saved,targetMonths:type==='emergency'?planSettings.emergencyMonths:undefined,createdAt:new Date().toISOString()});
+  const emergency=type==='emergency',months=emergency?(Number($('emergencyRange').value)===6?6:3):undefined,estimate=monthlyEssentialCosts().average;
+  if(emergency){planSettings.emergencyMonths=months;savePlanSettings();}
+  if(id){const goal=goals.find(item=>item.id===id);if(goal){goal.name=goal.type==='emergency'?'Emergency fund':name;goal.type=goal.type==='emergency'?'emergency':type;goal.target=target;goal.customTarget=goal.type==='emergency'&&(!estimate||Math.abs(target-estimate*months)>0.01);goal.configured=goal.type==='emergency'||goal.configured;goal.targetMonths=goal.type==='emergency'?months:undefined;goal.saved=saved;}}
+  else{goals.push({id:crypto.randomUUID(),name,type,target,saved,targetMonths:months,customTarget:emergency&&(!estimate||Math.abs(target-estimate*months)>0.01),configured:emergency||undefined,createdAt:new Date().toISOString()});if(emergency)localStorage.removeItem(EMERGENCY_DELETED_KEY);}
   saveGoals();$('goalDialog').close();
 });
-$('contributionForm').addEventListener('submit',event=>{event.preventDefault();const goal=goals.find(item=>item.id===$('contributionGoalId').value);const amount=Number($('contributionAmount').value);if(!goal||amount<=0)return;goal.saved=Number(goal.saved||0)+amount;saveGoals();$('contributionDialog').close();event.currentTarget.reset();});
+$('contributionForm').addEventListener('submit',event=>{event.preventDefault();const goal=goals.find(item=>item.id===$('contributionGoalId').value),amount=Number($('contributionAmount').value);if(!goal||amount<=0)return;const saved=Number(goal.saved)||0;if(contributionMode==='withdraw'&&amount>saved){$('contributionError').textContent=`You can withdraw up to ${money(saved)}.`;$('contributionError').hidden=false;return;}goal.saved=Math.max(0,Number((saved+(contributionMode==='withdraw'?-amount:amount)).toFixed(2)));if(goal.type==='emergency')goal.configured=true;saveGoals();$('contributionDialog').close();event.currentTarget.reset();});
 document.querySelectorAll('[data-goal-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();}));
 function setMobileMenu(open){$('sidebar').classList.toggle('open',open);$('mobileBackdrop').hidden=!open;$('mobileMenu').setAttribute('aria-expanded',String(open));}

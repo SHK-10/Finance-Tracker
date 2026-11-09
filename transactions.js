@@ -4,7 +4,7 @@
   let finance={};try{finance=JSON.parse(localStorage.getItem(FolioAccounts.dataKey()))||{};}catch{}
   if(!Array.isArray(finance.transactions))finance.transactions=[];
   const transactions=()=>finance.transactions;
-  const categoryNames=()=>[...new Set([...['Food & dining','Shopping','Transport','Housing','Entertainment','Health','Salary','Utilities','Internet','Subscription','Other'],...transactions().map(tx=>tx.category||'Other')])].sort((a,b)=>a.localeCompare(b));
+  const categoryNames=()=>[...new Set([...(Array.isArray(finance.categories)?finance.categories:['Food & dining','Shopping','Transport','Housing','Entertainment','Health','Salary','Utilities','Internet','Subscription','Other']),...transactions().map(tx=>tx.category||'Other')])].sort((a,b)=>a.localeCompare(b));
   const dateKey=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   const setTheme=theme=>{document.documentElement.dataset.theme=theme;const dark=theme==='dark';$('themeIcon').textContent=dark?'☀':'☾';$('themeToggle').setAttribute('aria-label',dark?'Turn on light mode':'Turn on dark mode');$('themeToggle').title=dark?'Turn on light mode':'Turn on dark mode';document.querySelector('meta[name="theme-color"]').content=dark?'#171b18':'#f5f6f2';};
   $('todayLabel').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});$('activeAccountName').textContent=`${FolioAccounts.current().name} account`;
